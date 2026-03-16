@@ -21,16 +21,16 @@ import {
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { label: "Dashboard",             href: "/dashboard",                          icon: LayoutDashboard },
-  { label: "Incoming Emergencies",  href: "/dashboard/incoming-emergencies",     icon: Siren },
-  { label: "Bed Management",        href: "/dashboard/bed-management",           icon: BedDouble },
-  { label: "Doctor Availability",   href: "/dashboard/doctor-availability",      icon: Stethoscope },
-  { label: "Ambulance Tracking",    href: "/dashboard/ambulance-tracking",       icon: Ambulance },
-  { label: "Patient Queue",         href: "/dashboard/patient-queue",            icon: Users },
-  { label: "Resource Management",   href: "/dashboard/resource-management",      icon: PackageOpen },
-  { label: "Reports & Analytics",   href: "/dashboard/reports-analytics",        icon: BarChart3 },
-  { label: "Notifications",         href: "/dashboard/notifications",            icon: Bell },
-  { label: "Settings",              href: "/dashboard/settings",                 icon: Settings },
+  { label: "Dashboard",             href: "/hospital/dashboard",                          icon: LayoutDashboard },
+  { label: "Incoming Emergencies",  href: "/hospital/dashboard/incoming-emergencies",     icon: Siren },
+  { label: "Bed Management",        href: "/hospital/dashboard/bed-management",           icon: BedDouble },
+  { label: "Doctor Availability",   href: "/hospital/dashboard/doctor-availability",      icon: Stethoscope },
+  { label: "Ambulance Tracking",    href: "/hospital/dashboard/ambulance-tracking",       icon: Ambulance },
+  { label: "Patient Queue",         href: "/hospital/dashboard/patient-queue",            icon: Users },
+  { label: "Resource Management",   href: "/hospital/dashboard/resource-management",      icon: PackageOpen },
+  { label: "Reports & Analytics",   href: "/hospital/dashboard/reports-analytics",        icon: BarChart3 },
+  { label: "Notifications",         href: "/hospital/dashboard/notifications",            icon: Bell },
+  { label: "Settings",              href: "/hospital/dashboard/settings",                 icon: Settings },
 ];
 
 export default function HospitalSidebar() {
@@ -62,7 +62,7 @@ export default function HospitalSidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 mt-2 overflow-y-auto space-y-0.5">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
-          const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+          const isActive = pathname === href || (href !== "/hospital/dashboard" && pathname.startsWith(href));
           return (
             <Link key={href} href={href}>
               <motion.div
