@@ -18,6 +18,7 @@ import {
   LogOut,
   Activity,
   ChevronRight,
+  Network,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { label: "Ambulance Tracking",    href: "/hospital/dashboard/ambulance-tracking",       icon: Ambulance },
   { label: "Patient Queue",         href: "/hospital/dashboard/patient-queue",            icon: Users },
   { label: "Resource Management",   href: "/hospital/dashboard/resource-management",      icon: PackageOpen },
+  { label: "Hospital Connect",      href: "/hospital/dashboard/connect",                  icon: Network },
   { label: "Reports & Analytics",   href: "/hospital/dashboard/reports-analytics",        icon: BarChart3 },
   { label: "Notifications",         href: "/hospital/dashboard/notifications",            icon: Bell },
   { label: "Settings",              href: "/hospital/dashboard/settings",                 icon: Settings },
