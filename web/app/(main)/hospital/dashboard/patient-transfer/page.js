@@ -4,13 +4,8 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, onSnapshot, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc, increment } from "firebase/firestore";
-import { collection, query, where, onSnapshot, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Handshake, ShieldAlert, Info, Loader2, Hospital, ArrowRightLeft, UserCircle, Activity, Paperclip, X, FileText, Sparkles, MapPin } from "lucide-react";
-
-
-
-import { Send, Handshake, ShieldAlert, Info, Loader2, Hospital, ArrowRightLeft, UserCircle, Activity } from "lucide-react";
 import { toast } from "sonner";
 
 const SEVERITY_LEVELS = [

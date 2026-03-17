@@ -317,8 +317,7 @@ function CommandPanel({ mode, onModeChange }) {
                   {activeMode.copy}
                 </p>
                 {activeMode.id === "dispatch" && (
-                  <div classN
-                  ame="mt-6 space-y-3">
+                  <div className="mt-6 space-y-3">
                     {routingCandidates.map((c) => (
                       <CandidateTone key={c.name} candidate={c} />
                     ))}

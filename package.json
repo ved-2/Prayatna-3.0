@@ -1,0 +1,9 @@
+{
+  "name": "prayatna-3.0",
+  "private": true,
+  "workspaces": [
+    "web",
+    "hospi-connect",
+    "Citizen-Hospi"
+  ]
+}

@@ -28,7 +28,7 @@ function Field({ icon: Icon, label, type = "text", value, onChange, placeholder 
 
 export default function SettingsPage() {
   const { user, userData, logout } = useAuth();
-  const [profile, setProfile] = useState({ name: "", address: "", phone: "", email: "", lat: "", lng: "" });
+  const [profile, setProfile] = useState({ name: "", address: "", phone: "", email: "", gpsLat: "", gpsLng: "" });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savedProfile, setSavedProfile] = useState(false);
 
