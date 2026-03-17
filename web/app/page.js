@@ -298,6 +298,7 @@ function CommandPanel({ mode, onModeChange }) {
         </div>
 
         <AnimatePresence mode="wait">
+          <></>
           <motion.div
             key={activeMode.id}
             initial={{ opacity: 0, y: 10 }}
