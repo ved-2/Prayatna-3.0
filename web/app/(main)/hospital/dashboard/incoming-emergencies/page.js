@@ -193,9 +193,10 @@ export default function IncomingEmergenciesPage() {
                             <User size={12} /> Amb: {em.ambulanceId}
                           </span>
                         )}
-                        {em.location && (
+                        {em.hospitalLat && em.hospitalLng && (
                           <span className="flex items-center gap-1">
-                            <MapPin size={12} /> {em.location}
+                            <MapPin size={12} className="text-green-500" /> 
+                            Dest: {em.hospitalLat.toFixed(4)}, {em.hospitalLng.toFixed(4)}
                           </span>
                         )}
                         {(em.hospitalAddress || em.dispatchPlan?.destinationAddress) && (

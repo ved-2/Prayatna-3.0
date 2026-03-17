@@ -46,6 +46,8 @@ export default function SettingsPage() {
           address: d.address || "",
           phone: d.phone || "",
           email: d.email || user.email || "",
+          gpsLat: d.gpsLat || "",
+          gpsLng: d.gpsLng || "",
         });
       } else {
         // Auto-create the hospital document if it doesn't exist
@@ -66,7 +68,14 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
-    await setDoc(doc(db, "hospitals", user.uid), profile, { merge: true });
+    
+    const dataToSave = {
+      ...profile,
+      gpsLat: profile.gpsLat !== "" ? parseFloat(profile.gpsLat) : null,
+      gpsLng: profile.gpsLng !== "" ? parseFloat(profile.gpsLng) : null,
+    };
+    
+    await setDoc(doc(db, "hospitals", user.uid), dataToSave, { merge: true });
     setSavingProfile(false);
     setSavedProfile(true);
     setTimeout(() => setSavedProfile(false), 2500);
@@ -119,6 +128,10 @@ export default function SettingsPage() {
             onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} />
           <Field icon={MapPin} label="Address" value={profile.address} placeholder="123 Medical Ave, City"
             onChange={e => setProfile(p => ({ ...p, address: e.target.value }))} />
+          <Field icon={MapPin} label="Latitude" value={profile.gpsLat} placeholder="22.7196"
+            onChange={e => setProfile(p => ({ ...p, gpsLat: e.target.value }))} />
+          <Field icon={MapPin} label="Longitude" value={profile.gpsLng} placeholder="75.8577"
+            onChange={e => setProfile(p => ({ ...p, gpsLng: e.target.value }))} />
         </div>
         <button onClick={saveProfile} disabled={savingProfile}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
