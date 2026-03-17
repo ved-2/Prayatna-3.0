@@ -5,13 +5,16 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, onSnapshot, getDocs, getDoc, addDoc, updateDoc, setDoc, doc, serverTimestamp, increment } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Handshake, ShieldAlert, Package, Info, Loader2, Hospital, Network } from "lucide-react";
+import { Send, Handshake, ShieldAlert, Package, Info, Loader2, Hospital, Network, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 // The same resources from Resource Management
 const RESOURCES = [
-  { key: "oxygen", label: "Oxygen Cylinders", icon: "🫁", color: "#3b82f6" },
-  { key: "ventilators", label: "Ventilators", icon: "🫀", color: "#8b5cf6" },
-  { key: "blood", label: "Blood Bags", icon: "🩸", color: "#ef4444" },
+  { key: "oxygen", label: "Oxygen Supply", icon: "💨", color: "#0ea5e9" },
+  { key: "defibrillator", label: "Defibrillator", icon: "🫀", color: "#8b5cf6" },
+  { key: "emergencyKits", label: "Emergency Kits", icon: "📦", color: "#f59e0b" },
+  { key: "icuEquipment", label: "ICU Equipments", icon: "🏥", color: "#ec4899" },
+  { key: "bloodBags", label: "Blood Reserve", icon: "🩸", color: "#ef4444" },
   { key: "wheelchairs", label: "Wheelchairs", icon: "♿", color: "#10b981" },
 ];
 
@@ -70,11 +73,20 @@ export default function HospitalConnectPage() {
       collection(db, "transferRequests"),
       where("fromHospital", "==", user.uid)
     );
-    const unsubOutgoing = onSnapshot(outgoingQ, (snap) => {
+    const unsubOutgoing = onSnapshot(outgoingQ, async (snap) => {
       const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort by latest first locally since we might not have an index for createdAt desc
+      // Sort by latest first
       docs.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
       setOutgoingRequests(docs);
+
+      // Check for accepted requests that we haven't processed yet
+      for (const req of docs) {
+        if (req.status === "accepted" && !req.processedByRequester) {
+           console.log("Found accepted request that needs processing locally:", req.id);
+           await handleProcessAcceptedRequest(req);
+        }
+      }
+
       setLoading(false);
     });
 
@@ -83,6 +95,55 @@ export default function HospitalConnectPage() {
       unsubOutgoing();
     };
   }, [user]);
+
+  // 🏥 Process an accepted request on our side (The Requester)
+  const handleProcessAcceptedRequest = async (request) => {
+    try {
+      const myRef = doc(db, "hospitals", user.uid);
+      const mySnap = await getDoc(myRef);
+      if (!mySnap.exists()) return;
+
+      const myData = mySnap.data();
+      const myLayout = myData.resourceLayout || {};
+      const myResources = myData.resources || {};
+      
+      const currentLayout = [...(myLayout[request.resourceType] || [])];
+      
+      // Sync layout if it's missing but we have a count
+      if (currentLayout.length === 0 && (myResources[request.resourceType] > 0)) {
+         for(let i = 0; i < myResources[request.resourceType]; i++) {
+           currentLayout.push({ id: i + 1, active: false });
+         }
+      }
+
+      let maxId = currentLayout.reduce((max, r) => Math.max(max, r.id), 0);
+      for(let i = 0; i < request.quantity; i++) {
+        currentLayout.push({
+           id: ++maxId,
+           active: false
+        });
+      }
+
+      // Update our own document - Sync BOTH fields surgically
+      await updateDoc(myRef, {
+        [`resourceLayout.${request.resourceType}`]: currentLayout,
+        [`resources.${request.resourceType}`]: (myResources[request.resourceType] || 0) + request.quantity
+      });
+
+      // Mark the request as processed by us so we don't repeat this
+      await updateDoc(doc(db, "transferRequests", request.id), {
+        processedByRequester: true,
+        completedAt: serverTimestamp()
+      });
+
+      toast.success("Inventory Updated", {
+        description: `Added ${request.quantity} ${request.resourceType} received from network.`
+      });
+
+    } catch (error) {
+      console.error("Error processing accepted request:", error);
+    }
+  };
 
   // 📝 Send a new transfer request
   const handleSendRequest = async (e) => {
@@ -104,7 +165,9 @@ export default function HospitalConnectPage() {
       setQuantity(5); // Reset
     } catch (error) {
       console.error("Error sending request:", error);
-      alert("Failed to send request. Check console for details (Could be missing Firestore index/rules).");
+      toast.error("Failed to send request", {
+        description: "Verify your network connection or Firestore permissions."
+      });
     } finally {
       setIsSending(false);
     }
@@ -113,71 +176,73 @@ export default function HospitalConnectPage() {
   // ✅ Accept an incoming request
   const handleAcceptRequest = async (request) => {
     try {
-      const fromRef = doc(db, "hospitals", request.fromHospital);
       const toRef = doc(db, "hospitals", user.uid); // Us (Receiver of request, Sender of resources)
 
-      // Get both hospital documents to modify their resource arrays
-      const fromSnap = await getDoc(fromRef);
+      // Get our document to modify our resource array
       const toSnap = await getDoc(toRef);
       
-      if (!fromSnap.exists() || !toSnap.exists()) throw new Error("Hospital document not found.");
+      if (!toSnap.exists()) throw new Error("Hospital document not found.");
 
-      const fromData = fromSnap.data().resourceLayout || {};
-      const toData = toSnap.data().resourceLayout || {};
+      const toData = toSnap.data();
+      const myLayout = toData.resourceLayout || {};
+      const myResources = toData.resources || {};
+      
+      // 1. Sync check: If layout is empty but count is > 0, re-initialize layout
+      let currentLayout = [...(myLayout[request.resourceType] || [])];
+      const countFromMatrix = myResources[request.resourceType] || 0;
 
-      console.log("FROM DATA (Requester):", fromData);
-      console.log("TO DATA (Us):", toData);
+      if (currentLayout.length === 0 && countFromMatrix > 0) {
+         console.log(`Syncing ${request.resourceType} layout from count ${countFromMatrix}`);
+         for(let i = 0; i < countFromMatrix; i++) {
+            currentLayout.push({ id: i + 1, active: false });
+         }
+      }
 
-      // 1. DEDUCT from US (toDoc). We find N inactive (free) resources and remove them from our inventory.
-      const ourResources = [...(toData[request.resourceType] || [])];
+      // 2. STRICT VALIDATION: Count free (inactive) resources
+      const freeResources = currentLayout.filter(r => !r.active);
+      
+      if (freeResources.length < request.quantity) {
+         toast.error("Transfer Blocked", {
+           description: `Insufficient resources. You have ${freeResources.length} available, but ${request.quantity} requested. Please update your Resource Matrix.`,
+           duration: 6000,
+         });
+         return; // ABORT
+      }
+
+      // 3. DEDUCT from US. We find N inactive (free) resources and remove them.
       let deducted = 0;
-      for (let i = ourResources.length - 1; i >= 0; i--) {
-        if (!ourResources[i].active && deducted < request.quantity) {
-          ourResources.splice(i, 1);
+      for (let i = currentLayout.length - 1; i >= 0; i--) {
+        if (!currentLayout[i].active && deducted < request.quantity) {
+          currentLayout.splice(i, 1);
           deducted++;
         }
       }
 
-      console.log("OUR RESOURCES AFTER DEDUCTION:", ourResources);
+      console.log(`Deducted ${deducted} ${request.resourceType}. New count: ${currentLayout.length}`);
 
-      if (deducted < request.quantity) {
-         alert(`You do not have enough free ${request.resourceType} to fulfill this request! (Have ${deducted}, Need ${request.quantity})`);
-         return;
-      }
-
-      // 2. ADD to THEM (fromDoc). They are the requester. We add new free resources to their inventory.
-      const theirResources = [...(fromData[request.resourceType] || [])];
-      let maxId = theirResources.reduce((max, r) => Math.max(max, r.id), 0);
-      
-      for(let i = 0; i < request.quantity; i++) {
-         theirResources.push({
-            id: ++maxId,
-            active: false
-         });
-      }
-
-      // 3. Perform the updates
-      console.log("UPDATING TO DOC WITH:", ourResources);
-      await setDoc(toRef, {
-        [`resourceLayout.${request.resourceType}`]: ourResources
-      }, { merge: true });
-
-      console.log("UPDATING FROM DOC WITH:", theirResources);
-      await setDoc(fromRef, {
-        [`resourceLayout.${request.resourceType}`]: theirResources
-      }, { merge: true });
-
-      // 4. Update the request status
-      console.log("UPDATING REQUEST STATUS TO ACCEPTED");
-      await updateDoc(doc(db, "transferRequests", request.id), {
-        status: "accepted"
+      // 4. Update OUR OWN doc - Sync BOTH counts and layout surgically
+      await updateDoc(toRef, {
+        [`resourceLayout.${request.resourceType}`]: currentLayout,
+        [`resources.${request.resourceType}`]: currentLayout.length 
       });
 
-      alert(`Successfully transferred ${request.quantity} ${request.resourceType}!`);
+      // 5. Update the request status
+      await updateDoc(doc(db, "transferRequests", request.id), {
+        status: "accepted",
+        acceptedByHospital: user.uid,
+        acceptedAt: serverTimestamp(),
+        processedByRequester: false
+      });
+
+      toast.success(`Transfer Complete`, {
+        description: `Successfully transferred ${request.quantity} ${request.resourceType} to ${getHospitalName(request.fromHospital)}.`
+      });
 
     } catch (error) {
       console.error("Error accepting request:", error);
-      alert(`Error accepting: ${error.message}`);
+      toast.error("Acceptance Failed", {
+        description: error.message
+      });
     }
   };
 

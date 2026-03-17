@@ -1,9 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { toast } from "sonner";
 import {
   LayoutDashboard,
   Siren,
@@ -39,7 +43,44 @@ const NAV_ITEMS = [
 
 export default function HospitalSidebar() {
   const pathname = usePathname();
-  const { userData, logout } = useAuth();
+  const { user, userData, logout } = useAuth();
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "transferRequests"),
+      where("toHospital", "==", user.uid),
+      where("status", "==", "pending")
+    );
+
+    let isInitialLoad = true;
+    const unsub = onSnapshot(q, (snap) => {
+      const count = snap.docs.length;
+      
+      // If we got more requests than before and it's not the first load, show a toast
+      if (!isInitialLoad && count > pendingRequests) {
+        const latestDoc = snap.docChanges().find(change => change.type === "added");
+        if (latestDoc) {
+          const data = latestDoc.doc.data();
+          toast.message("New Resource Request Waiting", {
+            description: `A hospital is requesting ${data.quantity} ${data.resourceType}.`,
+            action: {
+              label: "View",
+              onClick: () => window.location.href = "/hospital/dashboard/connect"
+            },
+            duration: 10000,
+          });
+        }
+      }
+      
+      setPendingRequests(count);
+      isInitialLoad = false;
+    });
+
+    return () => unsub();
+  }, [user, pendingRequests]);
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 flex flex-col z-40"
@@ -90,6 +131,11 @@ export default function HospitalSidebar() {
                 <span className={`text-sm font-medium flex-1 ${isActive ? "text-blue-400" : "group-hover:text-slate-200 transition-colors"}`}>
                   {label}
                 </span>
+                {label === "Hospital Connect" && pendingRequests > 0 && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg animate-bounce">
+                    {pendingRequests}
+                  </span>
+                )}
                 {isActive && <ChevronRight size={14} className="text-blue-400 opacity-60" />}
               </motion.div>
             </Link>

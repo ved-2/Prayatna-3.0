@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 const SYMPTOMS = [
   { id: "chest_pain", label: "Chest Pain", icon: "❤️", desc: "Heart attack suspected" },
@@ -56,8 +57,16 @@ export default function SosPageWeb() {
       }, 4000);
       
     } catch (error) {
-      console.error("SOS Dispatch failed", error);
-      alert("Failed to connect to emergency network.");
+      console.error("❌ SOS Dispatch failed:", error.code, error.message);
+      if (error.code === 'permission-denied') {
+        toast.error("Network Restriction", {
+          description: "Your account does not have permission to broadcast an SOS. Check Firestore Security Rules."
+        });
+      } else {
+        toast.error("Dispatch Failed", {
+          description: "Could not connect to the emergency network. Please call emergency services directly."
+        });
+      }
       setIsDispatching(false);
     }
   };
