@@ -19,6 +19,7 @@ import {
   Activity,
   ChevronRight,
   Network,
+  ArrowRightLeft,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { label: "Patient Queue",         href: "/hospital/dashboard/patient-queue",            icon: Users },
   { label: "Resource Management",   href: "/hospital/dashboard/resource-management",      icon: PackageOpen },
   { label: "Hospital Connect",      href: "/hospital/dashboard/connect",                  icon: Network },
+  { label: "Patient Transfer",      href: "/hospital/dashboard/patient-transfer",         icon: ArrowRightLeft },
   { label: "Reports & Analytics",   href: "/hospital/dashboard/reports-analytics",        icon: BarChart3 },
   { label: "Notifications",         href: "/hospital/dashboard/notifications",            icon: Bell },
   { label: "Settings",              href: "/hospital/dashboard/settings",                 icon: Settings },

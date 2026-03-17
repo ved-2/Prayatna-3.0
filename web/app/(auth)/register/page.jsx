@@ -38,9 +38,33 @@ export default function Register() {
         createdAt: new Date().toISOString()
       });
 
+      // For hospital admins, also create a minimal hospital profile so the dashboard can load.
+      if (role === "hospital_admin") {
+        await setDoc(doc(db, "hospitals", user.uid), {
+          name: name || "Hospital",
+          email,
+          address: "",
+          phone: "",
+          doctorsOnDuty: 0,
+          beds: {
+            icu: { total: 10, available: 5 },
+            general: { total: 50, available: 25 },
+            emergency: { total: 15, available: 8 },
+          },
+          resources: {
+            oxygen: 50,
+            ventilators: 12,
+            emergencyKits: 30,
+            icuEquipment: 8,
+            bloodBags: 40,
+            wheelchairs: 20,
+          },
+          createdAt: new Date(),
+        }, { merge: true });
+      }
+
       router.push(role === "hospital_admin" ? "/hospital/dashboard" : "/"); 
     } catch (err) {
-      console.error(err);
       if (err.code === "auth/email-already-in-use") {
         setError("This email address is already registered. Please sign in instead.");
       } else {
@@ -70,9 +94,33 @@ export default function Register() {
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
+      // For hospital admins, ensure the hospital document exists so the dashboard doesn't show empty state.
+      if (role === "hospital_admin") {
+        await setDoc(doc(db, "hospitals", user.uid), {
+          name: user.displayName || "Hospital",
+          email: user.email,
+          address: "",
+          phone: "",
+          doctorsOnDuty: 0,
+          beds: {
+            icu: { total: 10, available: 5 },
+            general: { total: 50, available: 25 },
+            emergency: { total: 15, available: 8 },
+          },
+          resources: {
+            oxygen: 50,
+            ventilators: 12,
+            emergencyKits: 30,
+            icuEquipment: 8,
+            bloodBags: 40,
+            wheelchairs: 20,
+          },
+          createdAt: new Date(),
+        }, { merge: true });
+      }
+
       router.push(role === "hospital_admin" ? "/hospital/dashboard" : "/");
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
