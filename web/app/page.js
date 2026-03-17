@@ -1,246 +1,509 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import {
-  Activity, Building2, Users, AlertCircle,
-  TrendingUp, MapPin, Clock, ArrowRight,
-  CheckCircle2, Shield, Zap, Menu, Bell
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Activity,
+  Ambulance,
+  ArrowRight,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  Crosshair,
+  HeartPulse,
+  MapPinned,
+  Radar,
+  RadioTower,
+  ShieldCheck,
+  Siren,
+  Sparkles,
+  Stethoscope,
+  Users,
+  Waypoints,
+  Waves,
+} from "lucide-react";
 
-// --- Mock Data ---
-const hospitalsSeed = [
-  { id: "h-1", name: "Apex Multispeciality", city: "South Delhi", status: "green", distance: 3.4, beds: 4, specialty: "Cardiology" },
-  { id: "h-2", name: "CityCare Govt", city: "Noida", status: "amber", distance: 7.8, beds: 2, specialty: "Trauma Care" },
-  { id: "h-3", name: "Metro Heart & Neuro", city: "Central Delhi", status: "red", distance: 5.2, beds: 1, specialty: "Neurology" },
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const heroMetrics = [
+  {
+    label: "Routing Precision",
+    value: "97.4%",
+    detail: "distance + ICU + bed fit",
+  },
+  {
+    label: "Average Dispatch",
+    value: "42 sec",
+    detail: "citizen SOS to ambulance lock",
+  },
+  {
+    label: "Live Capacity Nodes",
+    value: "128",
+    detail: "hospitals, ambulances, command desks",
+  },
 ];
 
-// --- Sub-Components ---
+const commandModes = [
+  {
+    id: "dispatch",
+    label: "Dispatch Grid",
+    icon: RadioTower,
+    eyebrow: "System Decision Layer",
+    title:
+      "Closest ambulance is not enough. The route engine scores who can actually treat the patient.",
+    copy: "Every SOS enters a live dispatch grid that ranks ambulances by travel time, hospitals by capacity, and clinical fit by available ICU and trauma teams.",
+  },
+  {
+    id: "citizen",
+    label: "Citizen Pulse",
+    icon: Siren,
+    eyebrow: "Mobile Trigger Layer",
+    title:
+      "One panic tap creates a structured medical event, not a random phone call.",
+    copy: "Citizen-Hospi pushes location, symptoms, and severity metadata into the system so routing starts before call-center delays kick in.",
+  },
+  {
+    id: "hospital",
+    label: "Hospital Sync",
+    icon: Building2,
+    eyebrow: "Capacity Response Layer",
+    title:
+      "Hospitals receive incoming cases with destination certainty and resource context.",
+    copy: "The dashboard sees what is coming, why it was routed, and what resources must remain ready before the patient reaches the gate.",
+  },
+];
 
-const StatCard = ({ icon: Icon, label, value, trend, color }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition">
-    <div className="flex justify-between items-start mb-4">
-      <div className={`p-2 rounded-xl ${color}`}>
-        <Icon className="w-6 h-6" />
-      </div>
-      <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">{trend}</span>
-    </div>
-    <h3 className="text-slate-500 text-sm font-medium">{label}</h3>
-    <p className="text-2xl font-bold text-slate-900">{value}</p>
-  </div>
-);
+const routingCandidates = [
+  {
+    name: "City Trauma Centre",
+    eta: "06 min",
+    distance: "2.4 km",
+    beds: "12 beds",
+    icu: "4 ICU",
+    fit: "92",
+    status: "Best fit",
+  },
+  {
+    name: "Metro Heart Institute",
+    eta: "08 min",
+    distance: "3.9 km",
+    beds: "7 beds",
+    icu: "2 ICU",
+    fit: "81",
+    status: "Cardiac ready",
+  },
+  {
+    name: "North Civil Hospital",
+    eta: "11 min",
+    distance: "5.1 km",
+    beds: "19 beds",
+    icu: "0 ICU",
+    fit: "55",
+    status: "Low ICU",
+  },
+];
 
-// --- Main Page Component ---
+const networkCards = [
+  {
+    title: "Live Hospital Mesh",
+    copy: "Bed count, ICU slots, and specialty readiness stream into one scoring engine.",
+    icon: Building2,
+    stat: "Real-time sync",
+  },
+  {
+    title: "Ambulance Radius Engine",
+    copy: "Nearby ambulances are ranked by distance, GPS freshness, and availability.",
+    icon: Ambulance,
+    stat: "Distance-first",
+  },
+  {
+    title: "Symptom-Aware Routing",
+    copy: "Critical alerts change the hospital scoring profile instantly based on resources.",
+    icon: HeartPulse,
+    stat: "Resource-fit",
+  },
+  {
+    title: "Command Visibility",
+    copy: "Citizen, ambulance, and hospital surfaces all read the same state machine.",
+    icon: Radar,
+    stat: "Unified Source",
+  },
+];
 
-export default function LandingPage() {
-  const [activePortal, setActivePortal] = useState("citizen");
-  const [location, setLocation] = useState("Lajpat Nagar, Delhi");
+const protocolSteps = [
+  {
+    title: "SOS Trigger",
+    copy: "Citizen app emits GPS coordinates, symptoms, and dispatch metadata.",
+    icon: Siren,
+  },
+  {
+    title: "Hospital Scoring",
+    copy: "The backend ranks nearby hospitals using resource availability and specialty fit.",
+    icon: Crosshair,
+  },
+  {
+    title: "Ambulance Lock",
+    copy: "The nearest live ambulance with fresh location is assigned to the destination.",
+    icon: Ambulance,
+  },
+  {
+    title: "Arrival Sync",
+    copy: "The hospital gets ETA and patient context as the ambulance moves.",
+    icon: Stethoscope,
+  },
+];
 
+const telemetryStrip = [
+  "Citizen SOS online",
+  "Hospital resource scoring",
+  "Live GPS ambulance lock",
+  "ICU-aware routing",
+  "Guardian alerts propagated",
+  "Hospital intake pre-notified",
+  "Unified emergency lifecycle",
+];
+
+function SectionEyebrow({ icon: Icon, children }) {
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
+    <div className="mb-5 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.4em] text-blue-600/80">
+      <span className="flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/50 px-3 py-1">
+        <Icon className="size-3.5" />
+        {children}
+      </span>
+    </div>
+  );
+}
 
+function MetricTile({ value, label, detail }) {
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      className="rounded-[28px] border border-slate-200/60 bg-white p-5 shadow-sm"
+    >
+      <div className="text-3xl font-black tracking-tighter text-slate-900">
+        {value}
+      </div>
+      <div className="mt-2 text-sm font-bold text-slate-700">{label}</div>
+      <div className="mt-1 text-xs text-slate-500">{detail}</div>
+    </motion.div>
+  );
+}
 
-      {/* Hero Section */}
-      <header className="pt-32 pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold mb-6 border border-blue-100"
-          >
-            <Zap size={14} fill="currentColor" />
-            LIVE CAPACITY BROADCASTING ENABLED
-          </motion.div>
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.1]"
-          >
-            Every second counts. <br />
-            <span className="text-blue-600 underline decoration-blue-200 underline-offset-8">Direct routing</span> saves lives.
-          </motion.h1 >
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-lg text-slate-600 mb-10 max-w-2xl mx-auto"
-          >
-            HospiConnect turns fragmented hospital data into a real-time care network.
-            Find open ICU beds, specialized trauma units, and live ambulances in one click.
-          </motion.p>
-        </div>
-        <div className="flex justify-center gap-4">
-          <Link href="/hospital/dashboard">
-            <button className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">
-              Monitor Now
-            </button>
-          </Link>
-        </div>
-      </header>
-
-      {/* Bento Stats */}
-      <section className="max-w-7xl mx-auto px-4 mb-20 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={Building2} label="Partner Hospitals" value="142" trend="+12%" color="bg-blue-100 text-blue-600" />
-        <StatCard icon={Users} label="Active Requests" value="1,284" trend="+4%" color="bg-orange-100 text-orange-600" />
-        <StatCard icon={Activity} label="Live ICU Beds" value="84" trend="-2%" color="bg-green-100 text-green-600" />
-        <StatCard icon={Clock} label="Avg. Routing Time" value="4.2m" trend="-18%" color="bg-purple-100 text-purple-600" />
-      </section>
-
-      {/* Main Interactive Section */}
-      <section className="max-w-7xl mx-auto px-4 pb-32">
-        <div className="bg-white rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-slate-100 bg-slate-50/50 p-2">
-            <button
-              onClick={() => setActivePortal("citizen")}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-bold transition ${activePortal === 'citizen' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Users size={18} /> Citizen Portal
-            </button>
-            <button
-              onClick={() => setActivePortal("hospital")}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-bold transition ${activePortal === 'hospital' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Building2 size={18} /> Hospital Operations
-            </button>
+function CommandModeButton({ mode, active, onClick }) {
+  const Icon = mode.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-2xl border px-4 py-3 text-left transition-all duration-300",
+        active
+          ? "border-blue-200 bg-blue-50 text-blue-900 shadow-sm"
+          : "border-slate-100 bg-slate-50/50 text-slate-500 hover:border-slate-200 hover:bg-white",
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className={cn(
+            "rounded-xl border p-2",
+            active
+              ? "border-blue-200 bg-white"
+              : "border-slate-200 bg-slate-100",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+        <div>
+          <div className="text-sm font-bold">{mode.label}</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-400">
+            {mode.eyebrow}
           </div>
+        </div>
+      </div>
+    </button>
+  );
+}
 
-          <div className="p-8 md:p-12">
-            <AnimatePresence mode="wait">
-              {activePortal === "citizen" ? (
-                <motion.div
-                  key="citizen"
-                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
-                  className="grid grid-cols-1 lg:grid-cols-12 gap-12"
-                >
-                  {/* Left: Search Form */}
-                  <div className="lg:col-span-5 space-y-8">
-                    <div>
-                      <h2 className="text-2xl font-bold mb-2">Find Emergency Care</h2>
-                      <p className="text-slate-500 text-sm">Real-time matching based on symptoms and location.</p>
-                    </div>
+function CandidateTone({ candidate }) {
+  const isBest = candidate.fit === "92";
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-4 transition-all",
+        isBest
+          ? "border-emerald-200 bg-emerald-50/50"
+          : "border-slate-100 bg-white",
+      )}
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-sm font-bold text-slate-900">
+            {candidate.name}
+          </div>
+          <div className="text-xs text-slate-500">
+            {candidate.distance} • {candidate.eta}
+          </div>
+        </div>
+        <Badge
+          variant="outline"
+          className="border-slate-200 bg-white text-[9px] uppercase tracking-widest"
+        >
+          {candidate.status}
+        </Badge>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] font-medium">
+        <div className="rounded-lg bg-slate-100 px-2 py-1.5 text-slate-600">
+          {candidate.beds}
+        </div>
+        <div className="rounded-lg bg-slate-100 px-2 py-1.5 text-slate-600">
+          {candidate.icu}
+        </div>
+        <div className="rounded-lg bg-blue-600 px-2 py-1.5 text-white text-center font-bold">
+          Fit {candidate.fit}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Type</label>
-                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
-                          <option>Cardiac (Heart Distress)</option>
-                          <option>Trauma (Accident)</option>
-                          <option>Maternity Care</option>
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Location</label>
-                        <div className="relative">
-                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                          <input
-                            value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <button className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
-                        Scan Local Network <ArrowRight size={18} />
-                      </button>
-                    </div>
+function CommandPanel({ mode, onModeChange }) {
+  const activeMode =
+    commandModes.find((item) => item.id === mode) ?? commandModes[0];
+  return (
+    <div className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-white p-4 shadow-xl sm:p-6">
+      <div className="absolute inset-x-4 top-4 flex items-center justify-between">
+        <Badge className="border-0 bg-rose-100 text-rose-700 hover:bg-rose-100">
+          <span className="mr-2 inline-block size-1.5 rounded-full bg-rose-500 animate-pulse" />
+          Live Decision Engine
+        </Badge>
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <Waves className="size-3 text-blue-500" />
+          Syncing Nodes
+        </div>
+      </div>
 
-                    <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100 flex gap-4">
-                      <AlertCircle className="text-orange-600 shrink-0" />
-                      <p className="text-xs text-orange-800 leading-relaxed">
-                        <b>Critical Notice:</b> High volume reported in North Delhi due to local incidents. Expect slight delays in ambulance dispatch.
-                      </p>
-                    </div>
+      <div className="pt-14">
+        <div className="grid gap-3 md:grid-cols-3">
+          {commandModes.map((item) => (
+            <CommandModeButton
+              key={item.id}
+              mode={item}
+              active={item.id === mode}
+              onClick={() => onModeChange(item.id)}
+            />
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeMode.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mt-6 space-y-6"
+          >
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+              <div className="rounded-[28px] border border-slate-100 bg-slate-50/50 p-6">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                  {activeMode.eyebrow}
+                </div>
+                <h3 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                  {activeMode.title}
+                </h3>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600">
+                  {activeMode.copy}
+                </p>
+                {activeMode.id === "dispatch" && (
+                  <div className="mt-6 space-y-3">
+                    {routingCandidates.map((c) => (
+                      <CandidateTone key={c.name} candidate={c} />
+                    ))}
                   </div>
+                )}
+              </div>
 
-                  {/* Right: Live Results */}
-                  <div className="lg:col-span-7 space-y-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold flex items-center gap-2">
-                        Recommended Facilities <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest">3 Live Matches</span>
-                      </h3>
-                      <button className="text-xs text-blue-600 font-bold hover:underline">View Map</button>
-                    </div>
-
-                    {hospitalsSeed.map((hospital, i) => (
-                      <div key={hospital.id} className={`p-5 rounded-2xl border transition-all ${i === 0 ? 'border-blue-200 bg-blue-50/30 ring-1 ring-blue-100' : 'border-slate-100 hover:border-slate-200 bg-white shadow-sm'}`}>
-                        <div className="flex justify-between items-start">
-                          <div className="flex gap-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold ${hospital.status === 'green' ? 'bg-green-100 text-green-600' : hospital.status === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                              #{i + 1}
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-slate-900">{hospital.name}</h4>
-                              <p className="text-sm text-slate-500">{hospital.city} • {hospital.specialty}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-bold text-slate-900">{hospital.distance} km</div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Distance</div>
-                          </div>
+              <div className="space-y-4">
+                <div className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className="text-[10px] font-bold uppercase text-slate-400">
+                    Current Trace
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-slate-900">
+                    Emergency 07A / Priority High
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {[
+                      { label: "GPS Lock", icon: CheckCircle2 },
+                      { label: "Hospital Scoring", icon: Crosshair },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-xs"
+                      >
+                        <div className="flex items-center gap-2 font-medium text-slate-600">
+                          <item.icon className="size-3.5 text-blue-500" />{" "}
+                          {item.label}
                         </div>
-                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                          <div className="flex gap-6">
-                            <div className="flex items-center gap-2 text-xs font-semibold">
-                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                              {hospital.beds} ICU Beds Avail.
-                            </div>
-                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                              <Clock size={14} /> 12m Response
-                            </div>
-                          </div>
-                          <button className="bg-white border border-slate-200 px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-50 transition">
-                            Details
-                          </button>
-                        </div>
+                        <span className="font-bold text-emerald-600 uppercase text-[9px]">
+                          Verified
+                        </span>
                       </div>
                     ))}
                   </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="hospital"
-                  initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-                  className="flex flex-col items-center justify-center py-20 text-center"
-                >
-                  <div className="bg-blue-50 p-6 rounded-full mb-6">
-                    <Building2 className="w-12 h-12 text-blue-600" />
-                  </div>
-                  <h2 className="text-3xl font-extrabold mb-4">Central Dashboard for Facilities</h2>
-                  <p className="text-slate-500 max-w-lg mx-auto mb-8">
-                    Broadcast your live bed count, manage emergency handoffs, and coordinate with the city-wide ambulance network.
-                  </p>
-                  <div className="flex gap-4">
-                    <button className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-xl shadow-slate-200">
-                      Enter Dashboard
-                    </button>
-                    <button className="bg-white border border-slate-200 px-8 py-3 rounded-xl font-bold hover:bg-slate-50 transition">
-                      View Protocol
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  const [activeMode, setActiveMode] = useState("dispatch");
+
+  return (
+    <main className="relative min-h-screen bg-slate-50/50 text-slate-900">
+      {/* Background Decor */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:32px_32px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40" />
+      </div>
+
+      <section className="relative mx-auto max-w-7xl px-6 pb-16 pt-32 sm:px-8 lg:px-10">
+        <div className="grid items-start gap-12 xl:grid-cols-[0.95fr_1.05fr]">
+          <div className="max-w-2xl">
+            <SectionEyebrow icon={Sparkles}>Infrastructure v3.0</SectionEyebrow>
+            <h1 className="text-5xl font-black leading-[0.95] tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
+              Not a website.
+              <span className="block text-blue-600">The Emergency OS.</span>
+            </h1>
+            <p className="mt-7 text-lg leading-relaxed text-slate-600">
+              Citizen SOS, ambulance routing, and hospital readiness unified
+              into one dynamic workflow. We route by clinical fit, not just
+              proximity.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <Button
+                asChild
+                size="lg"
+                className="h-12 rounded-full bg-blue-600 px-8 font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-200"
+              >
+                <Link href="/register">
+                  Launch Network <ArrowRight className="ml-2 size-4" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-12 rounded-full border-slate-200 bg-white px-8 font-bold hover:bg-slate-50"
+              >
+                <Link href="/login">
+                  Command Console <ShieldCheck className="ml-2 size-4" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="mt-12 grid gap-4 sm:grid-cols-3">
+              {heroMetrics.map((m) => (
+                <MetricTile key={m.label} {...m} />
+              ))}
+            </div>
+          </div>
+
+          <div className="xl:pt-6">
+            <CommandPanel mode={activeMode} onModeChange={setActiveMode} />
           </div>
         </div>
       </section>
 
-      {/* Trust Footer */}
-      <footer className="bg-white border-t border-slate-200 py-12">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-2 font-bold text-slate-400">
-            <Activity size={20} />
-            HOSPICONNECT NETWORK © 2026
+      {/* Marquee Strip */}
+      <section className="border-y border-slate-200 bg-white py-4 overflow-hidden">
+        <div className="flex animate-marquee whitespace-nowrap">
+          {[...telemetryStrip, ...telemetryStrip].map((item, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 px-8 text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400"
+            >
+              <span className="size-1.5 rounded-full bg-blue-500" /> {item}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="network" className="mx-auto max-w-7xl px-6 py-24">
+        <SectionEyebrow icon={Radar}>The Live Grid</SectionEyebrow>
+        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <h2 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+              Shared State Visibility.
+            </h2>
+            <p className="mt-6 text-slate-600 leading-relaxed">
+              The response path is reshaped in real-time. When a citizen signal
+              drops, the entire mesh updates—from the nearest paramedic's tablet
+              to the ICU charge nurse's dashboard.
+            </p>
           </div>
-          <div className="flex gap-12 text-xs font-bold text-slate-400 tracking-widest uppercase">
-            <div className="flex items-center gap-2"><Shield size={16} /> ISO 27001 Certified</div>
-            <div className="flex items-center gap-2"><CheckCircle2 size={16} /> HIPAA Compliant</div>
-            <div className="flex items-center gap-2"><TrendingUp size={16} /> Real-time Nodes</div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {networkCards.map((card) => (
+              <div
+                key={card.title}
+                className="rounded-[32px] border border-slate-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
+                    <card.icon className="size-5" />
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="bg-slate-100 text-slate-600 text-[9px] uppercase tracking-tighter"
+                  >
+                    {card.stat}
+                  </Badge>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">
+                  {card.title}
+                </h3>
+                <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                  {card.copy}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </footer>
-    </div>
+      </section>
+
+      {/* Footer CTA */}
+      <section className="mx-auto max-w-7xl px-6 pb-24">
+        <div className="rounded-[48px] bg-blue-600 p-12 text-center text-white shadow-2xl shadow-blue-200">
+          <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
+            Ready to secure your region?
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-blue-100">
+            Deploy the Prayatna 3.0 protocol and eliminate the technical
+            friction between a crisis and a cure.
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Button
+              size="lg"
+              className="rounded-full bg-white text-blue-600 hover:bg-blue-50 font-bold px-10"
+            >
+              Start Deployment
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full border-blue-400 text-white hover:bg-blue-500 font-bold px-10"
+            >
+              Schedule Demo
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
