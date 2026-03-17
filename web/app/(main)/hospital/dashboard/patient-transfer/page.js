@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
-import { collection, query, where, onSnapshot, getDocs, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc, increment } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Handshake, ShieldAlert, Info, Loader2, Hospital, ArrowRightLeft, UserCircle, Activity } from "lucide-react";
+import { Send, Handshake, ShieldAlert, Info, Loader2, Hospital, ArrowRightLeft, UserCircle, Activity, Paperclip, X, FileText, Sparkles, MapPin } from "lucide-react";
+
+
+
 
 const SEVERITY_LEVELS = [
   { key: "critical", label: "Critical", color: "text-rose-600", bg: "bg-rose-50" },
@@ -31,19 +34,23 @@ export default function PatientTransferPage() {
   const [patientName, setPatientName] = useState("");
   const [patientAge, setPatientAge] = useState("");
   const [severity, setSeverity] = useState("high");
-  const [specialization, setSpecialization] = useState("ICU / Life Support");
+  const [specializations, setSpecializations] = useState(["ICU / Life Support"]);
   const [notes, setNotes] = useState("");
   const [targetHospitalId, setTargetHospitalId] = useState("");
   
-  const [isSending, setIsSending] = useState(false);
+  const [sendingStatus, setSendingStatus] = useState(""); 
   const [requestSuccess, setRequestSuccess] = useState(false);
 
   // Data State
   const [otherHospitals, setOtherHospitals] = useState([]);
+  const [currentHospital, setCurrentHospital] = useState(null);
+  const [hospitalDoctors, setHospitalDoctors] = useState([]);
   const [incomingTransfers, setIncomingTransfers] = useState([]);
   const [outgoingTransfers, setOutgoingTransfers] = useState([]);
   const [patientQueue, setPatientQueue] = useState([]);
+  const [allNetworkDoctors, setAllNetworkDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+
 
   // Fetch data
   useEffect(() => {
@@ -54,12 +61,16 @@ export default function PatientTransferPage() {
       try {
         const querySnapshot = await getDocs(collection(db, "hospitals"));
         const hospitalsData = [];
+        let currHosp = null;
         querySnapshot.forEach((docSnap) => {
           if (docSnap.id !== user.uid) { 
             hospitalsData.push({ id: docSnap.id, ...docSnap.data() });
+          } else {
+            currHosp = docSnap.data();
           }
         });
         setOtherHospitals(hospitalsData);
+        if (currHosp) setCurrentHospital(currHosp);
         if (hospitalsData.length > 0) {
           setTargetHospitalId(hospitalsData[0].id);
         }
@@ -134,10 +145,27 @@ export default function PatientTransferPage() {
       console.error("❌ Error fetching patient queue:", error.message);
     });
 
+    const doctorsQ = query(collection(db, "doctors"), where("hospitalId", "==", user.uid));
+    const unsubDoctors = onSnapshot(doctorsQ, (snap) => {
+      setHospitalDoctors(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn("⚠️ Cannot fetch doctors (check Firebase rules):", error.message);
+    });
+
+    // 6. Fetch ALL Network Doctors to Power Global Auto-Routing
+    const allDoctorsQ = collection(db, "doctors");
+    const unsubAllDoctors = onSnapshot(allDoctorsQ, (snap) => {
+      setAllNetworkDoctors(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.warn("⚠️ Cannot fetch global network doctors", error.message);
+    });
+
     return () => {
       unsubIncoming();
       unsubOutgoing();
       unsubQueue();
+      unsubDoctors();
+      unsubAllDoctors();
     };
   }, [user]);
 
@@ -146,14 +174,17 @@ export default function PatientTransferPage() {
     e.preventDefault();
     if (!user || !targetHospitalId || !patientName || !patientAge) return;
 
-    setIsSending(true);
+    setSendingStatus("Uploading Document Details...");
+
+    setSendingStatus("Saving Request...");
     try {
       await addDoc(collection(db, "transferRequests"), {
         type: "patient",
         patientName,
         patientAge: parseInt(patientAge, 10),
         severity,
-        specialization,
+        specialization: specializations.join(" + "),
+        specializationsArray: specializations,
         notes,
         fromHospital: user.uid,
         toHospital: targetHospitalId,
@@ -171,7 +202,7 @@ export default function PatientTransferPage() {
       console.error("Error sending transfer:", error);
       alert("Failed to send patient transfer request. Check console for details.");
     } finally {
-      setIsSending(false);
+      setSendingStatus("");
     }
   };
 
@@ -197,6 +228,70 @@ export default function PatientTransferPage() {
       });
       updatedTransfer = true;
 
+      // Start: Intelligent Doctor Assignment
+      const doctorsQ = query(collection(db, "doctors"), where("hospitalId", "==", user.uid));
+      const doctorsSnap = await getDocs(doctorsQ);
+      const availableDoctors = [];
+      doctorsSnap.forEach((docItem) => {
+        const docData = docItem.data();
+        if (docData.status === "available") { // Only look at doctors currently working and available
+          availableDoctors.push({ id: docItem.id, ...docData });
+        }
+      });
+      
+      let assignedDoctorName = "Unassigned (No Available Staff)";
+      let assignedDoctorIds = [];
+      
+      if (availableDoctors.length > 0) {
+        const specs = transferRequest.specializationsArray || [transferRequest.specialization];
+        const assignedDoctorsList = [];
+        let doctorsPool = [...availableDoctors];
+        
+        specs.forEach(spec => {
+          if(!spec) return;
+          const matchIndex = doctorsPool.findIndex(
+            d => d.specialization && (
+              d.specialization.toLowerCase().includes(spec.toLowerCase().replace(/ogy$/, '').replace(/ist$/, '')) ||
+              spec.toLowerCase().includes(d.specialization.toLowerCase().replace(/ogy$/, '').replace(/ist$/, ''))
+            )
+          );
+          if (matchIndex !== -1) {
+            const match = doctorsPool.splice(matchIndex, 1)[0];
+            assignedDoctorsList.push(match);
+            assignedDoctorIds.push(match.id);
+          }
+        });
+        
+        if (assignedDoctorsList.length > 0) {
+          assignedDoctorName = assignedDoctorsList.map(d => `Dr. ${d.name} (${d.specialization})`).join(" + ");
+        } else {
+           // Fallback if none of the specific specialists are available
+           assignedDoctorName = `Dr. ${availableDoctors[0].name} (Emergency Cover)`;
+           assignedDoctorIds.push(availableDoctors[0].id);
+        }
+      }
+      // End: Intelligent Doctor Assignment
+
+      // Automatic Bed Management & Ward Assignment
+      const isCritical = transferRequest.severity === 'critical' || transferRequest.specialization?.toLowerCase().includes('icu');
+      const assignedWard = isCritical ? 'ICU Ward' : 'General Ward';
+
+      try {
+        if (isCritical) {
+          await updateDoc(doc(db, "hospitals", user.uid), {
+            "beds.icu.available": increment(-1),
+            "beds.icu.occupied": increment(1)
+          });
+        } else {
+          await updateDoc(doc(db, "hospitals", user.uid), {
+            "beds.general.available": increment(-1),
+            "beds.general.occupied": increment(1)
+          });
+        }
+      } catch (bedErr) {
+        console.error("Failed to update bed capacity automatically:", bedErr);
+      }
+
       // If allowed, also create patient + queue entry (may also be blocked by rules)
       const patientRef = await addDoc(collection(db, "patients"), {
         name: transferRequest.patientName,
@@ -208,6 +303,8 @@ export default function PatientTransferPage() {
         toHospital: transferRequest.toHospital,
         status: "transferred",
         transferRequestId: transferId,
+        assignedDoctor: assignedDoctorName,
+        assignedWard: assignedWard,
         acceptedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       });
@@ -216,12 +313,22 @@ export default function PatientTransferPage() {
         patientName: transferRequest.patientName,
         age: transferRequest.patientAge,
         symptoms: `${transferRequest.severity} / ${transferRequest.specialization}`,
-        assignedDoctor: "Unassigned",
+        assignedDoctor: assignedDoctorName,
+        assignedWard: assignedWard,
         priority: transferRequest.severity === "critical" ? "critical" : transferRequest.severity === "high" ? "high" : "medium",
         arrivalTime: serverTimestamp(),
         hospitalId: user.uid,
         transferRequestId: transferId,
       });
+
+      // Mark all assigned doctors as busy so they aren't double-assigned
+      for (const doctorId of assignedDoctorIds) {
+        try {
+          await updateDoc(doc(db, "doctors", doctorId), { status: "busy" });
+        } catch (doctorErr) {
+          console.error("Failed to mark doctor as busy:", doctorErr);
+        }
+      }
 
       console.log(`✅ Transfer request ${transferId} accepted by Hospital ${user.uid}`);
     } catch (error) {
@@ -231,6 +338,7 @@ export default function PatientTransferPage() {
         await setDoc(doc(db, "transferRequests", transferId, "responses", user.uid), responseData, { merge: true });
       } catch (fallbackError) {
         console.error("Failed to store response fallback for transfer request:", fallbackError.message);
+        alert("Permission Error: Check Firestore Security Rules.");
       }
 
       if (!updatedTransfer) {
@@ -266,6 +374,7 @@ export default function PatientTransferPage() {
         await setDoc(doc(db, "transferRequests", transferId, "responses", user.uid), responseData, { merge: true });
       } catch (fallbackError) {
         console.error("Failed to store rejection response fallback for transfer request:", fallbackError.message);
+        alert("Permission Error: Check Firestore Security Rules.");
       }
 
       // Reflect status locally so the UI doesn't keep the request as pending.
@@ -412,15 +521,23 @@ export default function PatientTransferPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Required Specialization</label>
-                <select
-                  value={specialization} onChange={(e) => setSpecialization(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none font-semibold cursor-pointer"
-                >
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Required Specializations (Multi-Select)</label>
+                <div className="flex flex-wrap gap-2">
                   {SPECIALIZATIONS.map(spec => (
-                    <option key={spec} value={spec}>{spec}</option>
+                    <button
+                      type="button"
+                      key={spec}
+                      onClick={() => setSpecializations(prev => prev.includes(spec) && prev.length > 1 ? prev.filter(s => s !== spec) : prev.includes(spec) ? prev : [...prev, spec])}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                        specializations.includes(spec) 
+                        ? "bg-indigo-100 text-indigo-700 border-indigo-300 shadow-sm" 
+                        : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {spec}
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
               <div>
@@ -431,6 +548,7 @@ export default function PatientTransferPage() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-medium resize-none"
                 />
               </div>
+
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Target Hospital</label>
@@ -453,12 +571,12 @@ export default function PatientTransferPage() {
 
               <motion.button
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                disabled={isSending || otherHospitals.length === 0}
+                disabled={!!sendingStatus || otherHospitals.length === 0}
                 type="submit"
                 className={`w-full py-4 rounded-xl text-white font-bold flex justify-center items-center gap-2 transition-all ${requestSuccess ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-slate-900 shadow-lg shadow-slate-900/20'} disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none`}
               >
-                {isSending ? <Loader2 size={18} className="animate-spin" /> : requestSuccess ? <Handshake size={20} /> : <Send size={18} />}
-                {isSending ? "Transmitting..." : requestSuccess ? "Transfer Request Sent!" : "Broadcast Transfer Request"}
+                {sendingStatus ? <Loader2 size={18} className="animate-spin" /> : requestSuccess ? <Handshake size={20} /> : <Send size={18} />}
+                {sendingStatus ? sendingStatus : requestSuccess ? "Transfer Request Sent!" : "Broadcast Transfer Request"}
               </motion.button>
             </form>
           </motion.div>
@@ -495,6 +613,13 @@ export default function PatientTransferPage() {
                 <AnimatePresence>
                   {incomingTransfers.map(req => {
                     const sevColor = req.severity === "critical" ? "text-rose-400" : req.severity === "high" ? "text-amber-400" : "text-blue-400";
+                    
+                    const specsRequired = req.specializationsArray || [req.specialization];
+                    const missingSpecs = specsRequired.filter(spec => 
+                      !hospitalDoctors.some(d => d.status === 'available' && (d.specialization?.toLowerCase().includes(spec.toLowerCase().replace(/ogy$/, '').replace(/ist$/, '')) || spec.toLowerCase().includes(d.specialization?.toLowerCase().replace(/ogy$/, '').replace(/ist$/, ''))))
+                    );
+                    const hasAllSpecialists = missingSpecs.length === 0;
+
                     return (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -525,9 +650,47 @@ export default function PatientTransferPage() {
                           </div>
                         )}
 
+                        <div className="bg-slate-900/50 p-3 rounded-xl mb-4 border border-slate-700/50">
+                          <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-widest flex items-center justify-between">
+                            <span>Your Live Capacity Checklist</span>
+                            <span className="text-emerald-500 font-bold">Checking...</span>
+                          </p>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700 text-center">
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold mb-1">ICU Beds</span>
+                              <span className={`font-black text-sm ${(currentHospital?.beds?.icu?.available || 0) > 0 ? "text-emerald-400" : "text-amber-500"}`}>
+                                {currentHospital?.beds?.icu?.available || 0} Open
+                              </span>
+                            </div>
+                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700 text-center">
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold mb-1">Gen Beds</span>
+                              <span className={`font-black text-sm ${(currentHospital?.beds?.general?.available || 0) > 0 ? "text-emerald-400" : "text-amber-500"}`}>
+                                {currentHospital?.beds?.general?.available || 0} Open
+                              </span>
+                            </div>
+                            <div className="bg-slate-800 p-2 rounded-lg border border-slate-700 text-center">
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold mb-1">Doctors</span>
+                              <span className={`font-black text-sm ${hasAllSpecialists ? "text-emerald-400" : "text-amber-500"}`}>
+                                {hasAllSpecialists ? "Team Available" : `Missing ${missingSpecs[0]}`}
+                              </span>
+                            </div>
+                          </div>
+                          {(currentHospital?.beds?.icu?.available === 0 && (req.severity === 'critical' || req.specialization.includes('ICU'))) && (
+                            <p className="text-[10px] text-rose-400 mt-2 font-bold flex items-center gap-1 bg-rose-500/10 p-1.5 rounded">
+                              <ShieldAlert size={12}/> Warning: You have 0 ICU beds available for this critical patient.
+                            </p>
+                          )}
+                        </div>
+
                         <div className="flex gap-3">
-                          <button onClick={() => handleAcceptTransfer(req)} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-2.5 rounded-xl transition-colors text-sm">
-                            Accept Patient
+                          <button 
+                            disabled={!hasAllSpecialists}
+                            onClick={() => handleAcceptTransfer(req)} 
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-2.5 rounded-xl transition-colors text-sm disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-emerald-500 flex items-center justify-center gap-2"
+                            title={!hasAllSpecialists ? `Missing specialist: ${missingSpecs.join(', ')}` : "Accept Patient"}
+                          >
+                            {!hasAllSpecialists && <ShieldAlert size={16} />}
+                            {hasAllSpecialists ? "Accept Patient" : "Team Required"}
                           </button>
                           <button onClick={() => handleRejectTransfer(req)} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl transition-colors text-sm">
                             Decline
@@ -553,13 +716,18 @@ export default function PatientTransferPage() {
             ) : (
               <div className="space-y-3">
                 {patientQueue.map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{p.patientName} <span className="text-xs font-medium text-slate-400">({p.age}y)</span></p>
-                      <p className="text-xs text-slate-500">{p.symptoms}</p>
-                      <p className="text-xs text-slate-500">Admitted: {p.arrivalTime?.toDate ? p.arrivalTime.toDate().toLocaleString() : "—"}</p>
+                  <div key={p.id} className="flex flex-col p-5 bg-slate-50 rounded-2xl border border-slate-200 transition-shadow hover:shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{p.patientName} <span className="text-xs font-medium text-slate-400">({p.age}y)</span></p>
+                        <p className="text-xs text-slate-500 font-semibold">{p.symptoms}</p>
+                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">
+                          Admitted: {p.arrivalTime?.toDate ? p.arrivalTime.toDate().toLocaleString() : "Just now"}
+                        </p>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100/50 shadow-sm shrink-0">In Queue</span>
                     </div>
-                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">In Queue</span>
+
                   </div>
                 ))}
               </div>
