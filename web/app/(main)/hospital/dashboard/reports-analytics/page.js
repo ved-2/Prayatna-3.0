@@ -111,8 +111,10 @@ export default function ReportsAnalyticsPage() {
         <div className="flex flex-wrap gap-4">
           {[
             { label: "Incoming", count: emergencies.filter(e => e.status === "incoming").length, color: "#ef4444" },
-            { label: "Accepted", count: emergencies.filter(e => e.status === "accepted").length, color: "#3b82f6" },
             { label: "Preparing", count: emergencies.filter(e => e.status === "preparing").length, color: "#f59e0b" },
+            { label: "Accepted", count: emergencies.filter(e => e.status === "accepted").length, color: "#3b82f6" },
+            { label: "Arrived", count: emergencies.filter(e => e.status === "arrived").length, color: "#8b5cf6" },
+            { label: "On Board", count: emergencies.filter(e => e.status === "patientOnboard").length, color: "#16a34a" },
             { label: "Completed", count: emergencies.filter(e => e.status === "completed").length, color: "#10b981" },
           ].map(({ label, count, color }) => (
             <div key={label} className="flex items-center gap-2 px-4 py-2 rounded-xl"

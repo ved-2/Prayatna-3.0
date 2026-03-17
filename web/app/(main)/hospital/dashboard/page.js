@@ -87,7 +87,14 @@ function BedBar({ label, available, total, color }) {
 
 // ─── Recent emergency row ──────────────────────────────────────────────────────
 const PRIORITY_COLORS = { critical: "#ef4444", high: "#f97316", medium: "#eab308", low: "#22c55e" };
-const STATUS_LABELS = { incoming: "Incoming", accepted: "Accepted", preparing: "Preparing", completed: "Done" };
+const STATUS_LABELS = {
+  incoming: "Incoming",
+  preparing: "Preparing",
+  accepted: "Accepted",
+  arrived: "Arrived",
+  patientOnboard: "On Board",
+  completed: "Done",
+};
 
 function EmergencyRow({ em }) {
   const [now, setNow] = useState(0);
@@ -184,10 +191,14 @@ export default function DashboardPage() {
   // ── Computed values ──────────────────────────────────────────────────────────
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
-  const activeEmergencies  = emergencies.filter(e => e.status === "incoming" || e.status === "accepted" || e.status === "preparing").length;
+  const activeEmergencies  = emergencies.filter(
+    e => ["incoming", "preparing", "accepted", "arrived", "patientOnboard"].includes(e.status)
+  ).length;
   const todayEmergencies   = emergencies.filter(e => e.createdAt?.toDate?.() >= today).length;
   const completedToday     = emergencies.filter(e => e.status === "completed" && e.createdAt?.toDate?.() >= today).length;
-  const ambulancesEnRoute  = ambulances.filter(a => a.patientOnboard).length;
+  const ambulancesEnRoute  = ambulances.filter(
+    a => a.currentEmergencyId || a.dispatchStatus === "accepted" || a.patientOnboard
+  ).length;
 
   // ── Beds: single source of truth = beds.*.available (written by Bed Management on Save) ──
   const beds = hospital?.beds || {};
@@ -221,8 +232,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
         <StatCard icon={BedDouble}     label="Total Beds Occupied"   value={`${totalBeds - totalAvailable} / ${totalBeds}`}          color="#3b82f6" delay={0.00} sub={`${totalAvailable} available across all wards`} />
         <StatCard icon={BedDouble}     label="ICU Beds Occupied"     value={`${icu.total - icu.available} / ${icu.total}`}            color="#6366f1" delay={0.04} sub={`${icu.available} available`} alert={icu.available <= 2 && icu.total > 0} />
-        <StatCard icon={Siren}         label="Active Emergencies"    value={activeEmergencies}                                        color="#ef4444" delay={0.08} sub="Incoming + accepted + preparing" alert={activeEmergencies > 0} />
-        <StatCard icon={Ambulance}     label="Ambulances En Route"   value={ambulancesEnRoute}                                        color="#f59e0b" delay={0.12} sub="Patients on board" />
+        <StatCard icon={Siren}         label="Active Emergencies"    value={activeEmergencies}                                        color="#ef4444" delay={0.08} sub="Assigned through patient onboard" alert={activeEmergencies > 0} />
+        <StatCard icon={Ambulance}     label="Ambulances En Route"   value={ambulancesEnRoute}                                        color="#f59e0b" delay={0.12} sub="Assigned or carrying patients" />
         <StatCard icon={Activity}      label="Today's Emergencies"   value={todayEmergencies}                                         color="#8b5cf6" delay={0.16} sub={`${completedToday} resolved today`} />
         <StatCard icon={Users}         label="Doctors On Duty"       value={`${doctorsOnDuty}`}                                       color="#06b6d4" delay={0.20} sub={`${doctorsAvail} available · ${doctorsOnDuty - doctorsAvail} busy`} />
       </div>
@@ -308,8 +319,8 @@ export default function DashboardPage() {
                   style={{ borderColor: "#f1f5f9" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: amb.patientOnboard ? "#fef2f2" : "#f0fdf4" }}>
-                      <Ambulance size={15} style={{ color: amb.patientOnboard ? "#ef4444" : "#10b981" }} />
+                      style={{ background: amb.patientOnboard ? "#fef2f2" : amb.currentEmergencyId ? "#fff7ed" : "#f0fdf4" }}>
+                      <Ambulance size={15} style={{ color: amb.patientOnboard ? "#ef4444" : amb.currentEmergencyId ? "#f97316" : "#10b981" }} />
                     </div>
                     <div>
                       <p className="text-sm font-semibold" style={{ color: "#0f172a" }}>
@@ -320,8 +331,8 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: amb.patientOnboard ? "#fef2f2" : "#f0fdf4", color: amb.patientOnboard ? "#ef4444" : "#10b981" }}>
-                      {amb.patientOnboard ? "En Route" : "Available"}
+                      style={{ background: amb.patientOnboard ? "#fef2f2" : amb.currentEmergencyId ? "#fff7ed" : "#f0fdf4", color: amb.patientOnboard ? "#ef4444" : amb.currentEmergencyId ? "#f97316" : "#10b981" }}>
+                      {amb.patientOnboard ? "Patient On Board" : amb.currentEmergencyId ? "Assigned" : "Available"}
                     </span>
                     {amb.eta && <p className="text-[10px] mt-0.5" style={{ color: "#94a3b8" }}>ETA {amb.eta} min</p>}
                   </div>
