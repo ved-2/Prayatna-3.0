@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bed, User, Save, RefreshCw, LayoutDashboard } from "lucide-react";
 
@@ -190,10 +190,10 @@ export default function BedManagementPage() {
       bedsUpdate[key] = { ...bedsUpdate[key], available };
     });
 
-    await updateDoc(doc(db, "hospitals", user.uid), {
+    await setDoc(doc(db, "hospitals", user.uid), {
       wardLayout,
       beds: bedsUpdate,
-    });
+    }, { merge: true });
 
     setSaving(false);
     setSaved(true);

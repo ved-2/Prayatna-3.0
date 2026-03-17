@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
-import { collection, query, where, onSnapshot, getDocs, getDoc, addDoc, updateDoc, doc, serverTimestamp, increment } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs, getDoc, addDoc, updateDoc, setDoc, doc, serverTimestamp, increment } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Handshake, ShieldAlert, Package, Info, Loader2, Hospital, Network } from "lucide-react";
 
@@ -158,14 +158,14 @@ export default function HospitalConnectPage() {
 
       // 3. Perform the updates
       console.log("UPDATING TO DOC WITH:", ourResources);
-      await updateDoc(toRef, {
+      await setDoc(toRef, {
         [`resourceLayout.${request.resourceType}`]: ourResources
-      });
+      }, { merge: true });
 
       console.log("UPDATING FROM DOC WITH:", theirResources);
-      await updateDoc(fromRef, {
+      await setDoc(fromRef, {
         [`resourceLayout.${request.resourceType}`]: theirResources
-      });
+      }, { merge: true });
 
       // 4. Update the request status
       console.log("UPDATING REQUEST STATUS TO ACCEPTED");

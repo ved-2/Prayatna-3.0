@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import {
-  collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp,
+  collection, onSnapshot, deleteDoc, doc, updateDoc, setDoc, serverTimestamp,
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Stethoscope, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
@@ -32,10 +32,17 @@ export default function DoctorAvailabilityPage() {
   const addDoctor = async () => {
     if (!form.name || !form.specialization) return;
     setAdding(true);
-    await addDoc(collection(db, "hospitals", user.uid, "doctors"), {
-      name: form.name, specialization: form.specialization,
-      status: "available", createdAt: serverTimestamp(),
-    });
+    
+    // Using setDoc with auto-generated ID and merge: true to avoid ALREADY_EXISTS 
+    // errors that occure during hot-reloads or spotty network retries with addDoc.
+    const newDocRef = doc(collection(db, "hospitals", user.uid, "doctors"));
+    await setDoc(newDocRef, {
+      name: form.name, 
+      specialization: form.specialization,
+      status: "available", 
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+
     setForm({ name: "", specialization: "" });
     setAdding(false);
   };
