@@ -37,6 +37,8 @@ export async function seedHospital(uid) {
       oxygen: 42, ventilators: 9, emergencyKits: 24,
       icuEquipment: 6, bloodBags: 35, wheelchairs: 15,
     },
+    gpsLat: 22.7196,
+    gpsLng: 75.8577,
     createdAt: serverTimestamp(),
   }, { merge: true });
 

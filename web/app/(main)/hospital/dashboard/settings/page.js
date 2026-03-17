@@ -46,8 +46,8 @@ export default function SettingsPage() {
           address: d.address || "",
           phone: d.phone || "",
           email: d.email || user.email || "",
-          lat: d.lat || "",
-          lng: d.lng || "",
+          gpsLat: d.gpsLat || "",
+          gpsLng: d.gpsLng || "",
         });
       } else {
         // Auto-create the hospital document if it doesn't exist
@@ -70,7 +70,14 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
-    await setDoc(doc(db, "hospitals", user.uid), profile, { merge: true });
+    
+    const dataToSave = {
+      ...profile,
+      gpsLat: profile.gpsLat !== "" ? parseFloat(profile.gpsLat) : null,
+      gpsLng: profile.gpsLng !== "" ? parseFloat(profile.gpsLng) : null,
+    };
+    
+    await setDoc(doc(db, "hospitals", user.uid), dataToSave, { merge: true });
     setSavingProfile(false);
     setSavedProfile(true);
     setTimeout(() => setSavedProfile(false), 2500);
@@ -104,38 +111,37 @@ export default function SettingsPage() {
         <p className="text-sm mt-1" style={{ color: "#64748b" }}>Manage hospital profile, security, and account settings</p>
       </motion.div>
 
-      <div className="flex flex-col gap-6">
-        {/* Hospital Profile */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="rounded-2xl p-6"
-          style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#eff6ff" }}>
-              <Building2 size={18} style={{ color: "#3b82f6" }} />
-            </div>
-            <h2 className="text-base font-bold" style={{ color: "#0f172a" }}>Hospital Profile</h2>
+      {/* Hospital Profile */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+        className="rounded-2xl p-6 mb-6"
+        style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#eff6ff" }}>
+            <Building2 size={18} style={{ color: "#3b82f6" }} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <Field icon={Building2} label="Hospital Name" value={profile.name} placeholder="City General Hospital"
-              onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} />
-            <Field icon={Phone} label="Contact Phone" type="tel" value={profile.phone} placeholder="+91 98765 43210"
-              onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))} />
-            <Field icon={Mail} label="Email" type="email" value={profile.email} placeholder="admin@hospital.com"
-              onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} />
-            <Field icon={MapPin} label="Address" value={profile.address} placeholder="123 Medical Ave, City"
-              onChange={e => setProfile(p => ({ ...p, address: e.target.value }))} />
-            <Field icon={MapPin} label="Latitude" type="number" value={profile.lat} placeholder="19.0760"
-              onChange={e => setProfile(p => ({ ...p, lat: e.target.value }))} />
-            <Field icon={MapPin} label="Longitude" type="number" value={profile.lng} placeholder="72.8777"
-              onChange={e => setProfile(p => ({ ...p, lng: e.target.value }))} />
-          </div>
-          <button onClick={saveProfile} disabled={savingProfile}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
-            style={{ background: savedProfile ? "#10b981" : "linear-gradient(135deg,#3b82f6,#6366f1)" }}>
-            {savingProfile ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-            {savingProfile ? "Saving…" : savedProfile ? "✓ Profile Saved!" : "Save Profile"}
-          </button>
-        </motion.div>
+          <h2 className="text-base font-bold" style={{ color: "#0f172a" }}>Hospital Profile</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <Field icon={Building2} label="Hospital Name" value={profile.name} placeholder="City General Hospital"
+            onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} />
+          <Field icon={Phone} label="Contact Phone" type="tel" value={profile.phone} placeholder="+91 98765 43210"
+            onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))} />
+          <Field icon={Mail} label="Email" type="email" value={profile.email} placeholder="admin@hospital.com"
+            onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} />
+          <Field icon={MapPin} label="Address" value={profile.address} placeholder="123 Medical Ave, City"
+            onChange={e => setProfile(p => ({ ...p, address: e.target.value }))} />
+          <Field icon={MapPin} label="Latitude" value={profile.gpsLat} placeholder="22.7196"
+            onChange={e => setProfile(p => ({ ...p, gpsLat: e.target.value }))} />
+          <Field icon={MapPin} label="Longitude" value={profile.gpsLng} placeholder="75.8577"
+            onChange={e => setProfile(p => ({ ...p, gpsLng: e.target.value }))} />
+        </div>
+        <button onClick={saveProfile} disabled={savingProfile}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 active:scale-95"
+          style={{ background: savedProfile ? "#10b981" : "linear-gradient(135deg,#3b82f6,#6366f1)" }}>
+          {savingProfile ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+          {savingProfile ? "Saving…" : savedProfile ? "✓ Profile Saved!" : "Save Profile"}
+        </button>
+      </motion.div>
 
         {/* Change Password */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
