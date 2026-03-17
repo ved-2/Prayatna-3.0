@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, onSnapshot, getDocs, addDoc, updateDoc, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Handshake, ShieldAlert, Info, Loader2, Hospital, ArrowRightLeft, UserCircle, Activity } from "lucide-react";
+import { toast } from "sonner";
 
 const SEVERITY_LEVELS = [
   { key: "critical", label: "Critical", color: "text-rose-600", bg: "bg-rose-50" },
@@ -169,7 +170,9 @@ export default function PatientTransferPage() {
       setNotes("");
     } catch (error) {
       console.error("Error sending transfer:", error);
-      alert("Failed to send patient transfer request. Check console for details.");
+      toast.error("Transfer Dispatch Failed", {
+        description: "Verify your connection or Firestore permissions."
+      });
     } finally {
       setIsSending(false);
     }
@@ -226,11 +229,11 @@ export default function PatientTransferPage() {
       console.log(`✅ Transfer request ${transferId} accepted by Hospital ${user.uid}`);
     } catch (error) {
       // If updating the transfer request or writing queue data is blocked by rules, we still store a response record
-      console.warn("Permission denied updating transferRequests or writing queue; storing response in fallback path.", error.message);
+      console.warn("⚠️ Permission denied updating transferRequests or writing queue:", error.code, error.message);
       try {
         await setDoc(doc(db, "transferRequests", transferId, "responses", user.uid), responseData, { merge: true });
       } catch (fallbackError) {
-        console.error("Failed to store response fallback for transfer request:", fallbackError.message);
+        console.error("❌ Critical: Failed to store response fallback:", fallbackError.code, fallbackError.message);
       }
 
       if (!updatedTransfer) {
@@ -275,9 +278,13 @@ export default function PatientTransferPage() {
     const alternative = findAlternativeHospital(transferRequest);
     if (alternative) {
       setTargetHospitalId(alternative);
-      alert(`❌ Transfer rejected. Auto-selected another hospital (${getHospitalName(alternative)}). You can resend the request.`);
+      toast.info("Alternative Hospital Selected", {
+        description: `Transfer rejected by ${getHospitalName(transferRequest.toHospital)}. Rerouting to ${getHospitalName(alternative)}.`
+      });
     } else {
-      alert(`❌ Transfer rejected. No alternative hospitals found. Please try again later.`);
+      toast.error("Transfer Rejected", {
+        description: "No alternative hospitals found in the current zone."
+      });
     }
   };
 
@@ -622,9 +629,13 @@ export default function PatientTransferPage() {
                               const alternative = findAlternativeHospital(req);
                               if (alternative) {
                                 setTargetHospitalId(alternative);
-                                alert(`✅ Patient details loaded. Auto-selected hospital: ${getHospitalName(alternative)}. You can resend the request.`);
+                                toast.success("Draft Restored", {
+                                   description: `Auto-selected hospital: ${getHospitalName(alternative)}. You can resend the request.`
+                                });
                               } else {
-                                alert(`✅ Patient details loaded. No alternative hospitals available; please select another manually.`);
+                                toast.info("Draft Restored", {
+                                   description: "No alternative hospitals available; please select another manually."
+                                });
                               }
 
                               window.scrollTo({ top: 0, behavior: 'smooth' });
