@@ -1,6 +1,7 @@
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata = {
   title: "HospiConnect – Real-Time Healthcare Resource Network",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <ConditionalNavbar />
           {children}
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

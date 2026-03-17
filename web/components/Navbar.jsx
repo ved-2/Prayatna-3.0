@@ -122,7 +122,7 @@ export default function Navbar() {
   // --- 3. Hospital Links ---
   const renderHospitalLinks = () => (
     <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500">
-      <Link
+      {/* <Link
         href="/hospital"
         className={`transition-all relative py-2 ${isActive("/hospital") && pathname === "/hospital" ? "text-blue-600" : "hover:text-slate-900"}`}
       >
@@ -145,14 +145,14 @@ export default function Navbar() {
             className="absolute -bottom-[22px] left-0 right-0 h-0.5 bg-blue-600"
           />
         )}
-      </Link>
+      </Link> */}
     </div>
   );
 
   return (
     <>
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-[72px] flex items-center justify-between">
+        <div className="w-full px-4 lg:px-8 h-[72px] flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <div className="bg-blue-600 p-2 rounded-lg shadow-sm group-hover:bg-blue-700 transition-colors">

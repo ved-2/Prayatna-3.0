@@ -142,6 +142,7 @@ export default function DashboardPage() {
   const [doctorsAvail, setDoctorsAvail] = useState(0);
   const [emergencies, setEmergencies] = useState([]);
   const [ambulances, setAmbulances] = useState([]);
+  const [networkRequests, setNetworkRequests] = useState(0);
 
   // ── 1. Hospital doc (beds, resources, name) ──────────────────────────────────
   useEffect(() => {
@@ -172,12 +173,16 @@ export default function DashboardPage() {
     });
   }, [user]);
 
-  // ── 4. Ambulances ────────────────────────────────────────────────────────────
+  // ── 5. Network Requests (Incoming) ──────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, "ambulances"), where("hospitalId", "==", user.uid));
+    const q = query(
+      collection(db, "transferRequests"),
+      where("toHospital", "==", user.uid),
+      where("status", "==", "pending")
+    );
     return onSnapshot(q, snap => {
-      setAmbulances(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setNetworkRequests(snap.docs.length);
     });
   }, [user]);
 
@@ -212,19 +217,19 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-extrabold" style={{ color: "#0f172a" }}>
           {hospital?.name || "Hospital Dashboard"}
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#64748b" }}>
+        {/* <p className="text-sm mt-1" style={{ color: "#64748b" }}>
           {hospital?.address || "All data synced live from Firestore"}
-        </p>
+        </p> */}
       </motion.div>
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
         <StatCard icon={BedDouble}     label="Total Beds Occupied"   value={`${totalBeds - totalAvailable} / ${totalBeds}`}          color="#3b82f6" delay={0.00} sub={`${totalAvailable} available across all wards`} />
-        <StatCard icon={BedDouble}     label="ICU Beds Occupied"     value={`${icu.total - icu.available} / ${icu.total}`}            color="#6366f1" delay={0.04} sub={`${icu.available} available`} alert={icu.available <= 2 && icu.total > 0} />
+        <StatCard icon={Activity}      label="Pending Network Requests" value={networkRequests}                                        color="#06b6d4" delay={0.04} sub="Requests from other hospitals" alert={networkRequests > 0} />
         <StatCard icon={Siren}         label="Active Emergencies"    value={activeEmergencies}                                        color="#ef4444" delay={0.08} sub="Incoming + accepted + preparing" alert={activeEmergencies > 0} />
         <StatCard icon={Ambulance}     label="Ambulances En Route"   value={ambulancesEnRoute}                                        color="#f59e0b" delay={0.12} sub="Patients on board" />
         <StatCard icon={Activity}      label="Today's Emergencies"   value={todayEmergencies}                                         color="#8b5cf6" delay={0.16} sub={`${completedToday} resolved today`} />
-        <StatCard icon={Users}         label="Doctors On Duty"       value={`${doctorsOnDuty}`}                                       color="#06b6d4" delay={0.20} sub={`${doctorsAvail} available · ${doctorsOnDuty - doctorsAvail} busy`} />
+        <StatCard icon={Users}         label="Doctors On Duty"       value={`${doctorsOnDuty}`}                                       color="#22c55e" delay={0.20} sub={`${doctorsAvail} available · ${doctorsOnDuty - doctorsAvail} busy`} />
       </div>
 
       {/* ── Bottom two-col grid ── */}
