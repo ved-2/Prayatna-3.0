@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Users, Stethoscope } from "lucide-react";
+import { Clock, Users, Stethoscope, BedDouble } from "lucide-react";
 
 const PRIORITY = {
   critical: { bg: "#fef2f2", text: "#991b1b", dot: "#ef4444", order: 0 },
@@ -65,10 +65,11 @@ export default function PatientQueuePage() {
       ) : (
         <div className="rounded-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e2e8f0", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
           {/* Table header */}
-          <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide"
+          <div className="grid grid-cols-6 gap-4 px-5 py-3 border-b text-xs font-semibold uppercase tracking-wide"
             style={{ background: "#f8fafc", borderColor: "#e2e8f0", color: "#64748b" }}>
             <span>#  Patient</span>
             <span>Symptoms</span>
+            <span>Ward</span>
             <span>Doctor</span>
             <span>Priority</span>
             <span>Arrival</span>
@@ -81,16 +82,20 @@ export default function PatientQueuePage() {
                 <motion.div key={p.id}
                   initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }} transition={{ delay: i * 0.03 }}
-                  className="grid grid-cols-5 gap-4 px-5 py-4 items-center border-b last:border-0 hover:bg-slate-50 transition-colors"
+                  className="grid grid-cols-6 gap-4 px-5 py-4 items-center border-b last:border-0 hover:bg-slate-50 transition-colors"
                   style={{ borderColor: "#f1f5f9" }}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                       style={{ background: "linear-gradient(135deg,#3b82f6,#6366f1)" }}>
                       {i + 1}
                     </div>
-                    <span className="text-sm font-semibold truncate" style={{ color: "#0f172a" }}>{p.name || "Unknown"}</span>
+                    <span className="text-sm font-semibold truncate" style={{ color: "#0f172a" }}>{p.patientName || p.name || "Unknown"}</span>
                   </div>
                   <span className="text-xs truncate" style={{ color: "#64748b" }}>{p.symptoms || "—"}</span>
+                  <div className="flex items-center gap-1.5 font-bold" style={{ color: p.priority === 'critical' ? "#ef4444" : "#3b82f6" }}>
+                    <BedDouble size={14} />
+                    <span className="text-xs truncate">{p.assignedWard || "Pending Ward"}</span>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <Stethoscope size={12} style={{ color: "#94a3b8" }} />
                     <span className="text-xs truncate" style={{ color: "#374151" }}>{p.assignedDoctor || "Unassigned"}</span>

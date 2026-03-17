@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import {
-  collection, onSnapshot, deleteDoc, doc, updateDoc, setDoc, serverTimestamp,
+  collection, onSnapshot, deleteDoc, doc, updateDoc, setDoc, addDoc, serverTimestamp, query, where
 } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Stethoscope, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
@@ -23,8 +23,11 @@ export default function DoctorAvailabilityPage() {
 
   useEffect(() => {
     if (!user) return;
-    const unsub = onSnapshot(collection(db, "hospitals", user.uid, "doctors"), snap => {
+    const q = query(collection(db, "doctors"), where("hospitalId", "==", user.uid));
+    const unsub = onSnapshot(q, snap => {
       setDoctors(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.warn("⚠️ Cannot fetch doctors (check Firebase rules):", error.message);
     });
     return () => unsub();
   }, [user]);
@@ -33,27 +36,30 @@ export default function DoctorAvailabilityPage() {
     if (!form.name || !form.specialization) return;
     setAdding(true);
     
-    // Using setDoc with auto-generated ID and merge: true to avoid ALREADY_EXISTS 
-    // errors that occure during hot-reloads or spotty network retries with addDoc.
-    const newDocRef = doc(collection(db, "hospitals", user.uid, "doctors"));
-    await setDoc(newDocRef, {
-      name: form.name, 
-      specialization: form.specialization,
-      status: "available", 
-      createdAt: serverTimestamp(),
-    }, { merge: true });
-
-    setForm({ name: "", specialization: "" });
-    setAdding(false);
+    try {
+      await addDoc(collection(db, "doctors"), {
+        hospitalId: user.uid,
+        name: form.name, 
+        specialization: form.specialization,
+        status: "available", 
+        createdAt: serverTimestamp(),
+      });
+      setForm({ name: "", specialization: "" });
+    } catch (error) {
+      console.error("⚠️ Failed to add doctor (check Firebase rules):", error.message);
+      alert("Permission Error: Please update your Firestore Security Rules to allow access to the 'doctors' collection.");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const toggleStatus = async (id, current) => {
     const next = current === "available" ? "busy" : current === "busy" ? "off" : "available";
-    await updateDoc(doc(db, "hospitals", user.uid, "doctors", id), { status: next });
+    await updateDoc(doc(db, "doctors", id), { status: next });
   };
 
   const removeDoctor = async (id) => {
-    await deleteDoc(doc(db, "hospitals", user.uid, "doctors", id));
+    await deleteDoc(doc(db, "doctors", id));
   };
 
   return (
