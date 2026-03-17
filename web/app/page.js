@@ -92,13 +92,14 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 pb-32">
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden">
           {/* Tabs */}
-          <div className="flex border-b border-slate-100 bg-slate-50/50 p-2">
-            <button
-              onClick={() => setActivePortal("citizen")}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-bold transition ${activePortal === 'citizen' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Users size={18} /> Citizen Portal
-            </button>
+          <div className="flex flex-col sm:flex-row border-b border-slate-100 bg-slate-50/50 p-2 gap-2">
+            <Link href="/citizen" className="flex-1">
+              <button
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-bold transition text-slate-500 hover:text-slate-700 bg-white shadow-sm hover:shadow-md"
+              >
+                <Users size={18} className="text-blue-600" /> <span className="text-slate-700">Open Citizen Portal</span>
+              </button>
+            </Link>
             <button
               onClick={() => setActivePortal("hospital")}
               className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-bold transition ${activePortal === 'hospital' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
@@ -109,7 +110,7 @@ export default function LandingPage() {
 
           <div className="p-8 md:p-12">
             <AnimatePresence mode="wait">
-              {activePortal === "citizen" ? (
+              {activePortal === "hospital" ? (
                 <motion.div
                   key="citizen"
                   initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
@@ -199,29 +200,7 @@ export default function LandingPage() {
                     ))}
                   </div>
                 </motion.div>
-              ) : (
-                <motion.div
-                  key="hospital"
-                  initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-                  className="flex flex-col items-center justify-center py-20 text-center"
-                >
-                  <div className="bg-blue-50 p-6 rounded-full mb-6">
-                    <Building2 className="w-12 h-12 text-blue-600" />
-                  </div>
-                  <h2 className="text-3xl font-extrabold mb-4">Central Dashboard for Facilities</h2>
-                  <p className="text-slate-500 max-w-lg mx-auto mb-8">
-                    Broadcast your live bed count, manage emergency handoffs, and coordinate with the city-wide ambulance network.
-                  </p>
-                  <div className="flex gap-4">
-                    <button className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-xl shadow-slate-200">
-                      Enter Dashboard
-                    </button>
-                    <button className="bg-white border border-slate-200 px-8 py-3 rounded-xl font-bold hover:bg-slate-50 transition">
-                      View Protocol
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+              ) : null}
             </AnimatePresence>
           </div>
         </div>

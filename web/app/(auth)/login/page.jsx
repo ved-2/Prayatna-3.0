@@ -31,7 +31,13 @@ export default function Login() {
       
       if (userDoc.exists()) {
         const role = userDoc.data().role;
-        router.push(role === "hospital_admin" ? "/hospital/dashboard" : "/");
+        if (role === "hospital_admin") {
+          router.push("/hospital/dashboard");
+        } else if (role === "citizen") {
+          router.push("/citizen");
+        } else {
+          router.push("/");
+        }
       } else {
         console.log("Creating missing user profile for Email user...");
         await import("firebase/firestore").then(({ setDoc }) => {
@@ -43,7 +49,7 @@ export default function Login() {
             updatedAt: new Date().toISOString()
           }, { merge: true });
         });
-        router.push("/");
+        router.push("/citizen");
       }
     } catch (err) {
       console.error(err);
@@ -66,7 +72,13 @@ export default function Login() {
       
       if (userDoc.exists()) {
         const role = userDoc.data().role;
-        router.push(role === "hospital_admin" ? "/hospital/dashboard" : "/");
+        if (role === "hospital_admin") {
+          router.push("/hospital/dashboard");
+        } else if (role === "citizen") {
+          router.push("/citizen");
+        } else {
+          router.push("/");
+        }
       } else {
         // If the user signed in with Google for the very first time on the Login page
         // instead of the Register page, they won't have a Firestore document yet.
@@ -81,7 +93,7 @@ export default function Login() {
             updatedAt: new Date().toISOString()
           }, { merge: true });
         });
-        router.push("/");
+        router.push("/citizen");
       }
     } catch (err) {
       console.error(err);

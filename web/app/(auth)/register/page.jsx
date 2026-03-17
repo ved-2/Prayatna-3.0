@@ -63,7 +63,13 @@ export default function Register() {
         }, { merge: true });
       }
 
-      router.push(role === "hospital_admin" ? "/hospital/dashboard" : "/"); 
+      if (role === "hospital_admin") {
+        router.push("/hospital/dashboard");
+      } else if (role === "citizen") {
+        router.push("/citizen");
+      } else {
+        router.push("/");
+      }
     } catch (err) {
       if (err.code === "auth/email-already-in-use") {
         setError("This email address is already registered. Please sign in instead.");
@@ -119,7 +125,13 @@ export default function Register() {
         }, { merge: true });
       }
 
-      router.push(role === "hospital_admin" ? "/hospital/dashboard" : "/");
+      if (role === "hospital_admin") {
+        router.push("/hospital/dashboard");
+      } else if (role === "citizen") {
+        router.push("/citizen");
+      } else {
+        router.push("/");
+      }
     } catch (err) {
       setError(err.message);
     } finally {
