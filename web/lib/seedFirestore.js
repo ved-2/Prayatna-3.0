@@ -49,7 +49,8 @@ export async function seedHospital(uid) {
     { name: "Dr. Deepa Nair",     specialization: "Pediatrician",    status: "available" },
   ];
   for (const dr of doctors) {
-    await addDoc(collection(db, "hospitals", uid, "doctors"), { ...dr, createdAt: serverTimestamp() });
+    const ref = doc(collection(db, "hospitals", uid, "doctors"));
+    await setDoc(ref, { ...dr, createdAt: serverTimestamp() }, { merge: true });
   }
 
   // 3. Emergencies
@@ -60,7 +61,8 @@ export async function seedHospital(uid) {
     { patientName: "Arjun Das",   patientId: "PAT004", symptoms: "Fractured leg",               eta: 20, priority: "medium",  status: "completed", ambulanceId: "AMB-04", hospitalId: uid, location: "Market", createdAt: Timestamp.fromDate(new Date(Date.now() - 3600000)) },
   ];
   for (const em of emergencies) {
-    await addDoc(collection(db, "emergencies"), em);
+    const ref = doc(collection(db, "emergencies"));
+    await setDoc(ref, em, { merge: true });
   }
 
   // 4. Ambulances
@@ -70,7 +72,8 @@ export async function seedHospital(uid) {
     { ambulanceId: "AMB-03", driverName: "Rajesh Gupta",  patientOnboard: false, patientName: null,          eta: null, location: "Hospital Bay",       gpsLat: 12.9716, gpsLng: 77.5946, hospitalId: uid },
   ];
   for (const amb of ambulances) {
-    await addDoc(collection(db, "ambulances"), amb);
+    const ref = doc(collection(db, "ambulances"));
+    await setDoc(ref, amb, { merge: true });
   }
 
   // 5. Patient Queue
@@ -82,7 +85,8 @@ export async function seedHospital(uid) {
     { name: "Kavitha R",    symptoms: "Stomach ache",   assignedDoctor: "Dr. Deepa Nair",    priority: "medium",   arrivalTime: serverTimestamp(), hospitalId: uid },
   ];
   for (const p of queue) {
-    await addDoc(collection(db, "patientQueue"), p);
+    const ref = doc(collection(db, "patientQueue"));
+    await setDoc(ref, p, { merge: true });
   }
 
   // 6. Notifications
@@ -93,7 +97,8 @@ export async function seedHospital(uid) {
     { message: "ℹ Dr. Vikram Mehta has gone off-duty",                               type: "info",      read: true,  hospitalId: uid, createdAt: Timestamp.fromDate(new Date(Date.now() - 7200000)) },
   ];
   for (const n of notifs) {
-    await addDoc(collection(db, "notifications"), n);
+    const ref = doc(collection(db, "notifications"));
+    await setDoc(ref, n, { merge: true });
   }
 
   // 7. Analytics
