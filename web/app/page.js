@@ -71,6 +71,13 @@ export default function LandingPage() {
             Find open ICU beds, specialized trauma units, and live ambulances in one click.
           </motion.p>
         </div>
+        <div className="flex justify-center gap-4">
+          <Link href="/hospital/dashboard">
+            <button className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-600/20">
+              Monitor Now
+            </button>
+          </Link>
+        </div>
       </header>
 
       {/* Bento Stats */}

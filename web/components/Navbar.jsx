@@ -79,7 +79,7 @@ export default function Navbar() {
   // --- 3. Hospital Admin Logged In ---
   const renderHospitalLinks = () => (
     <>
-      <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500">
+      {/* <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500">
         <Link href="/hospital" className={`transition-all relative ${isActive('/hospital') && pathname === '/hospital' ? 'text-blue-600' : 'hover:text-slate-900'}`}>
           Operations Hub
           {isActive('/hospital') && pathname === '/hospital' && <motion.div layoutId="nav-pill" className="absolute -bottom-5 w-full h-1 bg-blue-600 rounded-t-full" />}
@@ -88,17 +88,17 @@ export default function Navbar() {
           Live Bed Count
           {pathname.includes('inventory') && <motion.div layoutId="nav-pill" className="absolute -bottom-5 w-full h-1 bg-blue-600 rounded-t-full" />}
         </Link>
-      </div>
+      </div> */}
     </>
   );
 
   return (
     <>
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-[72px] flex items-center justify-between">
+        <div className="w-full px-4 lg:px-8 h-[72px] flex items-center justify-between">
           
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-1 group">
             <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-xl shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform">
               <Activity className="text-white w-5 h-5" />
             </div>

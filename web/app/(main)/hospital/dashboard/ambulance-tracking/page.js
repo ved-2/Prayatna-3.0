@@ -6,6 +6,13 @@ import { useAuth } from "@/context/AuthContext";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Ambulance, User, Clock, MapPin, CheckCircle } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Dynamically import Leaflet map so it only loads on the client side (prevents SSR window errors)
+const DynamicLiveMap = dynamic(() => import("@/components/hospital/LiveTrackerMap"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-400 text-sm font-bold">Loading Map...</div>
+});
 
 export default function AmbulanceTrackingPage() {
   const { user } = useAuth();
@@ -16,7 +23,9 @@ export default function AmbulanceTrackingPage() {
     if (!user) return;
     const q = query(collection(db, "ambulances"), where("hospitalId", "==", user.uid));
     const unsub = onSnapshot(q, snap => {
-      setAmbulances(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      console.log("🚑 AMBULANCE SNAPSHOT UPDATED:", data.map(a => ({ id: a.id, lat: a.gpsLat, lng: a.gpsLng })));
+      setAmbulances(data);
       setLoading(false);
     });
     return () => unsub();
@@ -80,13 +89,21 @@ export default function AmbulanceTrackingPage() {
                   <InfoField icon={MapPin} label="Current Location" value={amb.location || "GPS Updating…"} />
                   <InfoField icon={Ambulance} label="Patient" value={amb.patientName || (amb.patientOnboard ? "On Board" : "None")} />
                 </div>
-                {/* Map placeholder */}
-                <div className="mx-5 mb-5 rounded-xl overflow-hidden h-36 flex items-center justify-center"
+                {/* Map placeholder -> Real Map */}
+                <div className="mx-5 mb-5 rounded-xl overflow-hidden h-40 relative z-0"
                   style={{ background: "linear-gradient(135deg,#e2e8f0,#f1f5f9)", border: "1px dashed #cbd5e1" }}>
-                  <div className="text-center">
-                    <MapPin size={28} style={{ color: "#94a3b8" }} className="mx-auto mb-1" />
-                    <p className="text-xs font-medium" style={{ color: "#94a3b8" }}>Live Map — GPS: {amb.gpsLat ? `${amb.gpsLat.toFixed(4)}, ${amb.gpsLng.toFixed(4)}` : "Acquiring…"}</p>
-                  </div>
+                   {(amb.gpsLat && amb.gpsLng) ? (
+                      <DynamicLiveMap 
+                        lat={amb.gpsLat} 
+                        lng={amb.gpsLng} 
+                        popupText={`Ambulance ${amb.ambulanceId || amb.id.slice(0,5)}`}
+                      />
+                   ) : (
+                     <div className="flex flex-col items-center justify-center h-full">
+                        <MapPin size={28} style={{ color: "#94a3b8" }} className="mx-auto mb-1" />
+                        <p className="text-xs font-medium" style={{ color: "#94a3b8" }}>Acquiring GPS Signal…</p>
+                     </div>
+                   )}
                 </div>
               </motion.div>
             ))}
