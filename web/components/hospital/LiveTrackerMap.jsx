@@ -1,71 +1,76 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { MapContainer, TileLayer, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-// Fix for default marker icons in Next.js/Leaflet
-// Using explicitly hosted icons avoids Next.js webpack require() issues during dynamic loading
-const DefaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+// Custom icons to differentiate roles
+const ambulanceIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  tooltipAnchor: [16, -28],
   shadowSize: [41, 41]
 });
-L.Marker.prototype.options.icon = DefaultIcon;
 
-// Component to handle imperative updates to the map AND the marker
-function MapController({ lat, lng, popupText }) {
+const patientIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const hospitalIcon = L.icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+function MapController({ lat, lng, routePointsLeg1, routePointsLeg2, patientLocation, hospitalLocation }) {
   const map = useMap();
-  const markerRef = useRef(null);
 
   useEffect(() => {
     if (lat && lng) {
-      // 1. Pan the map smoothly
-      map.flyTo([lat, lng], map.getZoom(), {
-        animate: true,
-        duration: 1.5
-      });
-
-      // 2. Manage the marker imperatively
-      if (!markerRef.current) {
-        // Create marker if it doesn't exist
-        markerRef.current = L.marker([lat, lng]).addTo(map);
-        if (popupText) {
-          markerRef.current.bindPopup(popupText);
-        }
-      } else {
-        // Move existing marker
-        markerRef.current.setLatLng([lat, lng]);
-        if (popupText) {
-          markerRef.current.setPopupContent(popupText);
-        }
+      // Create a LatLngBounds object to fit all relevant points
+      const bounds = L.latLngBounds([lat, lng]);
+      
+      if (patientLocation?.lat && patientLocation?.lng) {
+        bounds.extend([patientLocation.lat, patientLocation.lng]);
       }
+      if (hospitalLocation?.lat && hospitalLocation?.lng) {
+        bounds.extend([hospitalLocation.lat, hospitalLocation.lng]);
+      }
+      if (routePointsLeg1?.length > 0) {
+        routePointsLeg1.forEach(p => bounds.extend(p));
+      }
+      if (routePointsLeg2?.length > 0) {
+        routePointsLeg2.forEach(p => bounds.extend(p));
+      }
+
+      // Fit map to bounds with some padding
+      map.fitBounds(bounds, { padding: [30, 30], animate: true, duration: 1.5 });
     }
-
-    // Cleanup when component unmounts
-    return () => {
-      if (markerRef.current && map) {
-        // Only remove if the map hasn't been destroyed yet
-        // A try-catch prevents errors during hot reloads
-        try {
-          map.removeLayer(markerRef.current);
-        } catch (e) {}
-        markerRef.current = null;
-      }
-    };
-  }, [lat, lng, map, popupText]);
+  }, [lat, lng, routePointsLeg1, routePointsLeg2, patientLocation, hospitalLocation, map]);
 
   return null;
 }
 
-export default function LiveTrackerMap({ lat, lng, popupText = "Ambulance Location" }) {
-  // Ensure we are working with pure numbers
+export default function LiveTrackerMap({ 
+  lat, 
+  lng, 
+  popupText = "Ambulance",
+  routePointsLeg1 = [], 
+  routePointsLeg2 = [],
+  patientLocation = null,
+  hospitalLocation = null
+}) {
   const numericLat = Number(lat);
   const numericLng = Number(lng);
 
@@ -79,19 +84,60 @@ export default function LiveTrackerMap({ lat, lng, popupText = "Ambulance Locati
 
   return (
     <div style={{ height: "100%", width: "100%", zIndex: 0 }}>
-      {/* We purposefully omit a changing 'key' on MapContainer to prevent it from destroying itself */}
       <MapContainer 
         center={[numericLat, numericLng]} 
-        zoom={15} 
-        style={{ height: "100%", width: "100%", zIndex: 10 }} // z-index lower than Nextjs nav
+        zoom={13} 
+        style={{ height: "100%", width: "100%", zIndex: 10 }}
         zoomControl={false}
       >
         <TileLayer 
            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {/* This invisible component creates the marker, updates its position directly, and pans the map */}
-        <MapController lat={numericLat} lng={numericLng} popupText={popupText} />
+
+        {/* Leg 2: Patient to Hospital (Lighter Green) */}
+        {routePointsLeg2.length > 0 && (
+          <Polyline 
+            positions={routePointsLeg2} 
+            pathOptions={{ color: "#10B981", weight: 3, dashArray: "5, 10", opacity: 0.6 }} 
+          />
+        )}
+
+        {/* Leg 1: Current position to Patient or Hospital (Primary Blue) */}
+        {routePointsLeg1.length > 0 && (
+          <Polyline 
+            positions={routePointsLeg1} 
+            pathOptions={{ color: "#3B82F6", weight: 5, opacity: 0.8 }} 
+          />
+        )}
+
+        {/* Ambulance Marker */}
+        <Marker position={[numericLat, numericLng]} icon={ambulanceIcon}>
+          <Popup>{popupText}</Popup>
+        </Marker>
+
+        {/* Patient Marker */}
+        {patientLocation?.lat && patientLocation?.lng && (
+          <Marker position={[patientLocation.lat, patientLocation.lng]} icon={patientIcon}>
+            <Popup>Patient Location</Popup>
+          </Marker>
+        )}
+
+        {/* Hospital Marker */}
+        {hospitalLocation?.lat && hospitalLocation?.lng && (
+          <Marker position={[hospitalLocation.lat, hospitalLocation.lng]} icon={hospitalIcon}>
+            <Popup>Hospital / Destination</Popup>
+          </Marker>
+        )}
+
+        <MapController 
+          lat={numericLat} 
+          lng={numericLng} 
+          routePointsLeg1={routePointsLeg1}
+          routePointsLeg2={routePointsLeg2}
+          patientLocation={patientLocation}
+          hospitalLocation={hospitalLocation}
+        />
       </MapContainer>
     </div>
   );
