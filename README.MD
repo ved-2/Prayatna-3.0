@@ -56,16 +56,13 @@ Frontend:
 • Web Dashboard  
 
 Backend:
-• FastAPI / Node.js  
+• Fire Base cloud functions
 
 Database & Realtime:
 • Firebase (Auth + Firestore)  
 
-APIs:
-• Google Maps API  
-
 AI:
-• Gemini / OpenAI (Symptom Analysis & Hospital Recommendation)  
+• Gemini 
 
 ---
 
@@ -112,7 +109,7 @@ AI:
 
 ## 👨‍💻 Team
 
-Team Name: [Your Team Name]
+Team Name: Neural Ninjas
 
 ---
 
